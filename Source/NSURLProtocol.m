@@ -31,6 +31,7 @@
 #import "Foundation/NSNotification.h"
 #import "Foundation/NSRunLoop.h"
 #import "Foundation/NSValue.h"
+#import "Foundation/NSURLSession.h"
 
 #import "GSPrivate.h"
 #import "GSURLPrivate.h"
@@ -375,6 +376,7 @@ typedef struct {
   NSCachedURLResponse		*cachedResponse;
   id <NSURLProtocolClient>	client;		// Not retained
   NSURLRequest			*request;
+  NSURLSessionTask  *task;
   NSString                      *in;
   NSString                      *out;
 #if	USE_ZLIB
@@ -526,6 +528,7 @@ static NSURLProtocol	*placeholder = nil;
 	}
       DESTROY(this->cachedResponse);
       DESTROY(this->request);
+      DESTROY(this->task);
 #if	USE_ZLIB
       if (this->compressing == YES)
 	{
@@ -601,9 +604,28 @@ static NSURLProtocol	*placeholder = nil;
   return self;
 }
 
+- (instancetype) initWithTask: (NSURLSessionTask*)task 
+               cachedResponse: (NSCachedURLResponse*)cachedResponse 
+                       client: (id<NSURLProtocolClient>)client
+{
+  if (nil != (self = [self initWithRequest: [task currentRequest] 
+                            cachedResponse: cachedResponse 
+                                    client: client]))
+    {
+      ASSIGN(this->task, task);
+    }
+
+  return self;
+}
+
 - (NSURLRequest *) request
 {
   return this->request;
+}
+
+- (NSURLSessionTask*) task
+{
+  return this->task;
 }
 
 @end
