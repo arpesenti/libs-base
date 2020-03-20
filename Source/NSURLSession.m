@@ -7,7 +7,19 @@
 - (instancetype) initWithSession: (NSURLSession*)session
                          request: (NSURLRequest*)request
                   taskIdentifier: (NSUInteger)identifier;
+
+- (NSURLProtocol*) protocol;
 @end
+
+@interface NSURLSessionTask (URLProtocolClient) <NSURLProtocolClient>
+
+@end
+
+typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
+  NSURLSessionTaskProtocolStateToBeCreated = 0,    
+  NSURLSessionTaskProtocolStateExisting = 1,  
+  NSURLSessionTaskProtocolStateInvalidated = 2,  
+};
 
 @interface NSOperationQueue (SynchronousBlock)
 
@@ -201,17 +213,93 @@
 
 @end
 
+@interface _NSURLProtocolClient : NSObject <NSURLProtocolClient>
+
+@end
+
+@implementation _NSURLProtocolClient
+
+- (void) URLProtocol: (NSURLProtocol *)protocol
+  cachedResponseIsValid: (NSCachedURLResponse *)cachedResponse
+{
+  //TODO
+}
+
+- (void) URLProtocol: (NSURLProtocol *)protocol
+    didFailWithError: (NSError *)error
+{
+  NSURLSessionTask  *task = [protocol task];
+
+  NSAssert(nil != task, @"Missing task");
+
+  [self task: task didFailWithError: error];
+}
+
+- (void) task: (NSURLSessionTask *)task
+    didFailWithError: (NSError *)error
+{
+  NSAssert(nil != task, @"Missing task");
+
+  //TODO
+}
+
+- (void) URLProtocol: (NSURLProtocol *)protocol
+	       didLoadData: (NSData *)data
+{
+  //TODO
+}
+
+- (void) URLProtocol: (NSURLProtocol *)protocol
+  didReceiveAuthenticationChallenge: (NSURLAuthenticationChallenge *)challenge
+{
+  //TODO
+}
+
+- (void) URLProtocol: (NSURLProtocol *)protocol
+  didReceiveResponse: (NSURLResponse *)response
+  cacheStoragePolicy: (NSURLCacheStoragePolicy)policy
+{
+  //TODO
+}
+
+- (void) URLProtocol: (NSURLProtocol *)protocol
+  wasRedirectedToRequest: (NSURLRequest *)request
+  redirectResponse: (NSURLResponse *)redirectResponse
+{
+  //TODO
+}
+
+- (void) URLProtocolDidFinishLoading: (NSURLProtocol *)protocol
+{
+  //TODO
+}
+
+- (void) URLProtocol: (NSURLProtocol *)protocol
+  didCancelAuthenticationChallenge: (NSURLAuthenticationChallenge *)challenge
+{
+  //TODO
+}
+
+@end
+
 @implementation NSURLSessionTask
 {
-  NSURLSession      *_session; /* not retained */
-  NSOperationQueue  *_workQueue;
-  NSUInteger        _suspendCount;
+  NSURLSession                   *_session; /* not retained */
+  NSOperationQueue               *_workQueue;
+  NSUInteger                     _suspendCount;
+  NSLock                         *_protocolLock;
+  NSURLSessionTaskProtocolState  _protocolState;
+  NSURLProtocol                  *_protocol;
+  Class                          _protocolClass;
 }
 
 - (instancetype) initWithSession: (NSURLSession*)session
                          request: (NSURLRequest*)request
                   taskIdentifier: (NSUInteger)identifier
 {
+  NSEnumerator  *e;
+  Class         protocolClass;
+
   if (nil != (self = [super init]))
     {
       _session = session;
@@ -222,6 +310,18 @@
       [_workQueue setMaxConcurrentOperationCount: 1];
       _state = NSURLSessionTaskStateSuspended;
       _suspendCount = 1;
+      _protocolLock = [[NSLock alloc] init];
+      _protocolState = NSURLSessionTaskProtocolStateToBeCreated;
+      _protocol = nil;
+      e = [[[session configuration] protocolClasses] objectEnumerator];
+      while (nil != (protocolClass = [e nextObject]))
+        {
+          if ([protocolClass canInitWithRequest: request])
+            {
+              _protocolClass = protocolClass;
+            }
+        }
+      NSAssert(nil != _protocolClass, @"Unsupported protocol");      
     }
   
   return self;
@@ -235,6 +335,7 @@
   DESTROY(_taskDescription);
   DESTROY(_error);
   DESTROY(_workQueue);
+  DESTROY(_protocolLock);
   [super dealloc];
 }
 
@@ -365,7 +466,31 @@
 
     if (0 == _suspendCount)
       {
-          NSLog(@"Resuming"); //TODO
+        NSURLProtocol  *protocol;
+        
+        protocol = [self protocol];
+
+        [_workQueue addOperationWithBlock: ^{
+          if (nil != protocol)
+            {
+              [protocol startLoading];
+            }
+          else if (nil == _error)
+            {
+              NSDictionary          *userInfo;
+              _NSURLProtocolClient  *client;
+
+              userInfo = [NSDictionary dictionaryWithObjectsAndKeys: 
+                [_originalRequest URL], NSURLErrorFailingURLErrorKey,
+                [[_originalRequest URL] absoluteString], NSURLErrorFailingURLStringErrorKey,
+                nil];
+              _error = [[NSError alloc] initWithDomain: NSURLErrorDomain 
+                                                  code: NSURLErrorUnsupportedURL 
+                                              userInfo: userInfo];
+              client = [[_NSURLProtocolClient alloc] init];
+              [client task: self didFailWithError: _error];
+            }
+        }];
       }
   }];
 }
@@ -390,9 +515,53 @@
       copy->_session = _session;
       copy->_workQueue = _workQueue;
       copy->_suspendCount  = _suspendCount;
+      copy->_protocolLock = [_protocolLock copy];
     }
 
   return copy;
+}
+
+- (NSURLProtocol*) protocol
+{
+  NSURLProtocol  *protocol;
+
+  [_protocolLock lock];
+
+  switch (_protocolState)
+    {
+      case NSURLSessionTaskProtocolStateToBeCreated:
+        {
+          NSURLCache           *cache;
+          NSCachedURLResponse  *response;
+
+          if (nil != (cache = [[_session configuration] URLCache]))
+            {
+              response = [cache cachedResponseForRequest: _currentRequest];
+              _protocol = [[_protocolClass alloc] initWithTask: self 
+                                                cachedResponse: response 
+                                                        client: nil];
+            }
+          else
+            {
+              _protocol = [[_protocolClass alloc] initWithTask: self 
+                                                cachedResponse: nil 
+                                                        client: nil];
+            }
+          _protocolState = NSURLSessionTaskProtocolStateExisting;
+          protocol = _protocol;
+          break;
+        } 
+      case NSURLSessionTaskProtocolStateExisting:
+        protocol = _protocol;
+        break;
+      case NSURLSessionTaskProtocolStateInvalidated:
+        protocol = nil;
+        break;    
+    }
+
+  [_protocolLock unlock];
+
+  return protocol;
 }
 
 @end
@@ -403,13 +572,46 @@
 
 @implementation NSURLSessionConfiguration
 
+- (instancetype) init
+{
+  if (nil != (self = [super init]))
+    {
+      _protocolClasses = [NSArray arrayWithObjects: nil]; //TODO add HTTP protocol class
+    }
+
+  return self;
+}
+
+- (void) dealloc
+{
+  DESTROY(_URLCache);
+  DESTROY(_protocolClasses);
+  [super dealloc];
+}
+
+- (NSURLCache*) URLCache
+{
+  return _URLCache;
+}
+
+- (void) setURLCache: (NSURLCache*)cache
+{
+  ASSIGN(_URLCache, cache);
+}
+
+- (NSArray*) protocolClasses
+{
+  return _protocolClasses;
+}
+
 - (id) copyWithZone: (NSZone*)zone
 {
-  id copy = [[[self class] alloc] init];
+  NSURLSessionConfiguration *copy = [[[self class] alloc] init];
 
   if (copy) 
     {
-      
+      copy->_URLCache = [_URLCache copy];
+      copy->_protocolClasses = [_protocolClasses copyWithZone: zone];
     }
 
   return copy;

@@ -14,6 +14,7 @@
 @class NSURLRequest;
 @class NSURLResponse;
 @class NSError;
+@class NSURLCache;
 
 @interface NSURLSession : NSObject
 {
@@ -189,6 +190,17 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
  * modify the configuration of a session after it has been created.
  */
 @interface NSURLSessionConfiguration : NSObject <NSCopying>
+{
+  NSURLCache  *_URLCache;
+  NSArray     *_protocolClasses;
+}
+
+- (NSURLCache*) URLCache;
+
+- (void) setURLCache: (NSURLCache*)cache;
+
+- (NSArray*) protocolClasses;
+
 @end
 
 @protocol NSURLSessionDelegate <NSObject>
