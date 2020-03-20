@@ -3,12 +3,22 @@
 #import <Foundation/Foundation.h>
 
 
+@interface NSURLSession()
+- (NSOperationQueue*) workQueue;
+@end
+
 @interface NSURLSessionTask()
 - (instancetype) initWithSession: (NSURLSession*)session
                          request: (NSURLRequest*)request
                   taskIdentifier: (NSUInteger)identifier;
 
 - (NSURLProtocol*) protocol;
+
+- (NSURLSession*) session;
+
+- (void) setState: (NSURLSessionTaskState)state;
+
+- (void) invalidateProtocol;
 @end
 
 @interface NSURLSessionTask (URLProtocolClient) <NSURLProtocolClient>
@@ -211,6 +221,11 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
   [_tasks removeObjectForKey: identifier];
 }
 
+- (NSOperationQueue*) workQueue
+{
+  return _workQueue;
+}
+
 @end
 
 @interface _NSURLProtocolClient : NSObject <NSURLProtocolClient>
@@ -238,9 +253,51 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 - (void) task: (NSURLSessionTask *)task
     didFailWithError: (NSError *)error
 {
-  NSAssert(nil != task, @"Missing task");
+  NSURLSession                  *session;
+  NSOperationQueue              *delegateQueue;
+  id<NSURLSessionDelegate>      delegate;
 
-  //TODO
+  session = [task session];
+  NSAssert(nil != session, @"Missing session");
+
+  delegateQueue = [session delegateQueue];
+  delegate = [session delegate];
+
+  if (nil != delegate)
+    {
+      [delegateQueue addOperationWithBlock: ^{
+        if (NSURLSessionTaskStateCompleted == [task state])
+          {
+            return;
+          }
+
+        if ([delegate respondsToSelector: @selector(URLSession:task:didCompleteWithError:)])
+          {
+            [(id<NSURLSessionTaskDelegate>)delegate URLSession: session 
+                                                          task: task 
+                                          didCompleteWithError: error];
+          }
+
+        [task setState: NSURLSessionTaskStateCompleted];
+        [[session workQueue] addOperationWithBlock: ^{
+          [session removeTask: task];
+        }];
+      }];
+    }
+  else
+    {
+      if (NSURLSessionTaskStateCompleted == [task state])
+        {
+          return;
+        }
+
+      [task setState: NSURLSessionTaskStateCompleted];
+      [[session workQueue] addOperationWithBlock: ^{
+        [session removeTask: task];
+      }];
+    }
+  
+  [task invalidateProtocol];
 }
 
 - (void) URLProtocol: (NSURLProtocol *)protocol
@@ -562,6 +619,24 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
   [_protocolLock unlock];
 
   return protocol;
+}
+
+- (NSURLSession*) session 
+{
+  return _session;
+}
+
+- (void) setState: (NSURLSessionTaskState)state
+{
+  _state = state;
+}
+
+- (void) invalidateProtocol
+{
+  [_protocolLock lock];
+  _protocolState = NSURLSessionTaskProtocolStateInvalidated;
+  DESTROY(_protocol);
+  [_protocolLock unlock];
 }
 
 @end
