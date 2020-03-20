@@ -9,6 +9,23 @@
                   taskIdentifier: (NSUInteger)identifier;
 @end
 
+@interface NSOperationQueue (SynchronousBlock)
+
+- (void) addSynchronousOperationWithBlock: (GSBlockOperationBlock)block;
+
+@end
+
+@implementation NSOperationQueue (SynchronousBlock)
+
+- (void) addSynchronousOperationWithBlock: (GSBlockOperationBlock)block
+{
+  NSBlockOperation *bop = [NSBlockOperation blockOperationWithBlock: block];
+  NSArray *ops = [NSArray arrayWithObject: bop];
+  [self addOperations: ops waitUntilFinished: YES];
+}
+
+@end
+
 @implementation NSURLSession
 {
   NSOperationQueue     *_workQueue;
@@ -107,18 +124,13 @@
 
 - (void) invalidateAndCancel
 {
-  NSOperation       *operation;
-  NSArray           *operations;
   NSEnumerator      *e;
   NSNumber          *identifier;
   NSURLSessionTask  *task;
 
-  operation = [NSBlockOperation blockOperationWithBlock: ^{
+  [_workQueue addSynchronousOperationWithBlock: ^{
     _invalidated = YES;
   }];
-  operations = [NSArray arrayWithObject: operation];
-
-  [_workQueue addOperations: operations waitUntilFinished: YES];
 
   e = [_tasks keyEnumerator];
   while (nil != (identifier = [e nextObject]))
@@ -302,10 +314,7 @@
 
 - (void) cancel
 {
-  NSOperation  *operation;
-  NSArray      *operations;
-
-  operation = [NSBlockOperation blockOperationWithBlock: ^{
+  [_workQueue addSynchronousOperationWithBlock: ^{
     if (!(NSURLSessionTaskStateRunning == _state
       || NSURLSessionTaskStateSuspended == _state))
       {
@@ -316,18 +325,11 @@
 
     NSLog(@"Cancelling"); //TODO
   }];
-
-  operations = [NSArray arrayWithObject: operation];
-
-  [_workQueue addOperations: operations waitUntilFinished: YES];
 }
 
 - (void) suspend
 {
-  NSOperation  *operation;
-  NSArray      *operations;
-
-  operation = [NSBlockOperation blockOperationWithBlock: ^{
+  [_workQueue addSynchronousOperationWithBlock: ^{
     if (NSURLSessionTaskStateCanceling == _state
       || NSURLSessionTaskStateCompleted == _state)
       {
@@ -343,18 +345,11 @@
         NSLog(@"Suspending"); //TODO
       }    
   }];
-
-  operations = [NSArray arrayWithObject: operation];
-
-  [_workQueue addOperations: operations waitUntilFinished: YES];
 }
 
 - (void) resume
 {
-  NSOperation  *operation;
-  NSArray      *operations;
-
-  operation = [NSBlockOperation blockOperationWithBlock: ^{
+  [_workQueue addSynchronousOperationWithBlock: ^{
     if (NSURLSessionTaskStateCanceling == _state
       || NSURLSessionTaskStateCompleted == _state)
       {
@@ -373,10 +368,6 @@
           NSLog(@"Resuming"); //TODO
       }
   }];
-
-  operations = [NSArray arrayWithObject: operation];
-
-  [_workQueue addOperations: operations waitUntilFinished: YES];
 }
 
 - (id) copyWithZone: (NSZone*)zone
