@@ -2,6 +2,7 @@
 #define __NSURLSession_h_GNUSTEP_BASE_INCLUDE
 
 #import <Foundation/NSObject.h>
+#import <Foundation/NSURLRequest.h>
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_9,GS_API_LATEST)
 @protocol NSURLSessionDelegate;
@@ -191,13 +192,18 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
  */
 @interface NSURLSessionConfiguration : NSObject <NSCopying>
 {
-  NSURLCache  *_URLCache;
-  NSArray     *_protocolClasses;
+  NSURLCache               *_URLCache;
+  NSURLRequestCachePolicy  _requestCachePolicy;
+  NSArray                  *_protocolClasses;
 }
 
 - (NSURLCache*) URLCache;
 
 - (void) setURLCache: (NSURLCache*)cache;
+
+- (NSURLRequestCachePolicy) requestCachePolicy;
+
+- (void) setRequestCachePolicy: (NSURLRequestCachePolicy)policy;
 
 - (NSArray*) protocolClasses;
 
