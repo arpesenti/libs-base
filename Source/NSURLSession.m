@@ -19,6 +19,8 @@
 - (void) setState: (NSURLSessionTaskState)state;
 
 - (void) invalidateProtocol;
+
+- (void) setResponse: (NSURLResponse*)response;
 @end
 
 @interface NSURLSessionTask (URLProtocolClient) <NSURLProtocolClient>
@@ -124,24 +126,26 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 
 - (void) finishTasksAndInvalidate
 {
-  [_workQueue addOperationWithBlock: ^{
-    _invalidated = YES;
-    
-    //TODO wait for tasks to finish
+  [_workQueue addOperationWithBlock: 
+    ^{
+      _invalidated = YES;
+      
+      //TODO wait for tasks to finish
 
-    if (nil == _delegate)
-      {
-        return;
-      }
-
-    [_delegateQueue addOperationWithBlock: ^{
-      if ([_delegate respondsToSelector: @selector(URLSession:didBecomeInvalidWithError:)])
+      if (nil == _delegate)
         {
-          [_delegate URLSession: self didBecomeInvalidWithError: nil];
-          _delegate = nil;
+          return;
         }
+
+      [_delegateQueue addOperationWithBlock: 
+        ^{
+          if ([_delegate respondsToSelector: @selector(URLSession:didBecomeInvalidWithError:)])
+            {
+              [_delegate URLSession: self didBecomeInvalidWithError: nil];
+              _delegate = nil;
+            }
+        }];
     }];
-  }];
 }
 
 - (void) invalidateAndCancel
@@ -150,9 +154,10 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
   NSNumber          *identifier;
   NSURLSessionTask  *task;
 
-  [_workQueue addSynchronousOperationWithBlock: ^{
-    _invalidated = YES;
-  }];
+  [_workQueue addSynchronousOperationWithBlock: 
+    ^{
+      _invalidated = YES;
+    }];
 
   e = [_tasks keyEnumerator];
   while (nil != (identifier = [e nextObject]))
@@ -161,20 +166,22 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
       [task cancel];
     }
 
-  [_workQueue addOperationWithBlock: ^{
-    if (nil == _delegate)
-      {
-        return;
-      }
-    
-    [_delegateQueue addOperationWithBlock: ^{
-      if ([_delegate respondsToSelector: @selector(URLSession:didBecomeInvalidWithError:)])
+  [_workQueue addOperationWithBlock: 
+    ^{
+      if (nil == _delegate)
         {
-          [_delegate URLSession: self didBecomeInvalidWithError: nil];
-          _delegate = nil;
+          return;
         }
+      
+      [_delegateQueue addOperationWithBlock: 
+        ^{
+          if ([_delegate respondsToSelector: @selector(URLSession:didBecomeInvalidWithError:)])
+            {
+              [_delegate URLSession: self didBecomeInvalidWithError: nil];
+              _delegate = nil;
+            }
+        }];
     }];
-  }];
 }
 
 - (NSURLSessionDataTask*) dataTaskWithRequest: (NSURLRequest*)request
@@ -229,15 +236,36 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 @end
 
 @interface _NSURLProtocolClient : NSObject <NSURLProtocolClient>
-
+{
+  NSURLRequestCachePolicy  _cachePolicy;
+  NSMutableArray           *_cacheableData;
+  NSURLResponse            *_cacheableResponse;
+}
 @end
 
 @implementation _NSURLProtocolClient
 
+- (instancetype) init
+{
+  if (nil != (self = [super init]))
+    {
+      _cachePolicy = NSURLCacheStorageNotAllowed;
+    }
+
+  return self;
+}
+
+- (void) dealloc
+{
+  DESTROY(_cacheableData);
+  DESTROY(_cacheableResponse);
+  [super dealloc];
+}
+
 - (void) URLProtocol: (NSURLProtocol *)protocol
   cachedResponseIsValid: (NSCachedURLResponse *)cachedResponse
 {
-  //TODO
+
 }
 
 - (void) URLProtocol: (NSURLProtocol *)protocol
@@ -265,24 +293,26 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 
   if (nil != delegate)
     {
-      [delegateQueue addOperationWithBlock: ^{
-        if (NSURLSessionTaskStateCompleted == [task state])
-          {
-            return;
-          }
+      [delegateQueue addOperationWithBlock: 
+        ^{
+          if (NSURLSessionTaskStateCompleted == [task state])
+            {
+              return;
+            }
 
-        if ([delegate respondsToSelector: @selector(URLSession:task:didCompleteWithError:)])
-          {
-            [(id<NSURLSessionTaskDelegate>)delegate URLSession: session 
-                                                          task: task 
-                                          didCompleteWithError: error];
-          }
+          if ([delegate respondsToSelector: @selector(URLSession:task:didCompleteWithError:)])
+            {
+              [(id<NSURLSessionTaskDelegate>)delegate URLSession: session 
+                                                            task: task 
+                                            didCompleteWithError: error];
+            }
 
-        [task setState: NSURLSessionTaskStateCompleted];
-        [[session workQueue] addOperationWithBlock: ^{
-          [session removeTask: task];
+          [task setState: NSURLSessionTaskStateCompleted];
+          [[session workQueue] addOperationWithBlock: 
+            ^{
+              [session removeTask: task];
+            }];
         }];
-      }];
     }
   else
     {
@@ -292,9 +322,10 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
         }
 
       [task setState: NSURLSessionTaskStateCompleted];
-      [[session workQueue] addOperationWithBlock: ^{
-        [session removeTask: task];
-      }];
+      [[session workQueue] addOperationWithBlock: 
+        ^{
+          [session removeTask: task];
+        }];
     }
   
   [task invalidateProtocol];
@@ -303,38 +334,178 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 - (void) URLProtocol: (NSURLProtocol *)protocol
 	       didLoadData: (NSData *)data
 {
-  //TODO
+  NSURLSessionTask          *task = [protocol task];
+  NSURLSession              *session;
+  NSOperationQueue          *delegateQueue;
+  id<NSURLSessionDelegate>  delegate;
+
+  NSAssert(nil != task, @"Missing task");
+
+  session = [task session];
+  delegate = [session delegate];
+  delegateQueue = [session delegateQueue];
+
+  switch (_cachePolicy)
+    {
+      case NSURLCacheStorageAllowed:
+      case NSURLCacheStorageAllowedInMemoryOnly:
+        {
+          if (nil != _cacheableData)
+            {
+              [_cacheableData addObject: data];
+            }
+          break;
+        }
+      case NSURLCacheStorageNotAllowed:
+        break;
+    }
+
+  if (nil != delegate 
+    && [task isKindOfClass: [NSURLSessionDataTask class]]
+    && [delegate respondsToSelector: @selector(URLSession:dataTask:didReceiveData:)])
+    {
+      [delegateQueue addOperationWithBlock:
+       ^{
+         [(id<NSURLSessionDataDelegate>)delegate URLSession: session 
+                                                   dataTask: (NSURLSessionDataTask*)task 
+                                             didReceiveData: data];
+       }];
+    }
 }
 
 - (void) URLProtocol: (NSURLProtocol *)protocol
   didReceiveAuthenticationChallenge: (NSURLAuthenticationChallenge *)challenge
 {
-  //TODO
+  //FIXME
 }
 
 - (void) URLProtocol: (NSURLProtocol *)protocol
   didReceiveResponse: (NSURLResponse *)response
   cacheStoragePolicy: (NSURLCacheStoragePolicy)policy
 {
-  //TODO
+  NSURLSessionTask          *task = [protocol task];
+  NSURLSession              *session;
+
+  NSAssert(nil != task, @"Missing task");
+
+  [task setResponse: response];
+
+  session = [task session];
+
+  if (![task isKindOfClass: [NSURLSessionDataTask class]])
+    {
+      return;
+    }
+
+  _cachePolicy = policy;
+
+  if (nil != [[session configuration] URLCache])
+    {
+      switch (policy)
+        {
+          case NSURLCacheStorageAllowed:
+          case NSURLCacheStorageAllowedInMemoryOnly:
+            ASSIGN(_cacheableData, [NSMutableArray array]);
+            ASSIGN(_cacheableResponse, response);
+            break;
+          case NSURLCacheStorageNotAllowed:
+            break;
+        }
+    }
 }
 
 - (void) URLProtocol: (NSURLProtocol *)protocol
   wasRedirectedToRequest: (NSURLRequest *)request
   redirectResponse: (NSURLResponse *)redirectResponse
 {
-  //TODO
+  NSAssert(NO, @"The NSURLSession implementation doesn't currently handle redirects directly.");
 }
 
 - (void) URLProtocolDidFinishLoading: (NSURLProtocol *)protocol
 {
-  //TODO
+  NSURLSessionTask          *task = [protocol task];
+  NSURLSession              *session;
+  NSURLResponse             *urlResponse;
+  NSURLCache                *cache;
+  NSOperationQueue          *delegateQueue;
+  id<NSURLSessionDelegate>  delegate;
+
+  NSAssert(nil != task, @"Missing task");
+
+  session = [task session];
+  urlResponse = [task response];
+  delegate = [session delegate];
+  delegateQueue = [session delegateQueue];
+
+  if (nil != (cache = [[session configuration] URLCache])
+    && [task isKindOfClass: [NSURLSessionDataTask class]]
+    && nil != _cacheableData
+    && nil != _cacheableResponse)
+    {
+      NSCachedURLResponse  *cacheable;
+      NSMutableData        *data;
+      NSEnumerator         *e;
+      NSData               *d;
+
+      data = [NSMutableData data];
+      e = [_cacheableData objectEnumerator];
+      while (nil != (d = [e nextObject]))
+        {
+          [data appendData: d];
+        }
+
+      cacheable = [[NSCachedURLResponse alloc] initWithResponse: urlResponse 
+                                                           data: data 
+                                                       userInfo: nil 
+                                                  storagePolicy: _cachePolicy];
+      [cache storeCachedResponse: cacheable 
+                     forDataTask: (NSURLSessionDataTask*)task];
+      RELEASE(cacheable);
+    }
+
+  if (nil != delegate)
+    {
+      [delegateQueue addOperationWithBlock: 
+        ^{
+          if (NSURLSessionTaskStateCompleted == [task state])
+            {
+              return;
+            }
+          
+          if ([delegate respondsToSelector: @selector(URLSession:task:didCompleteWithError:)])
+            {
+              [(id<NSURLSessionTaskDelegate>)delegate URLSession: session 
+                                                            task: task 
+                                            didCompleteWithError: nil];
+            }
+          
+          [task setState: NSURLSessionTaskStateCompleted];
+
+          [[session workQueue] addOperationWithBlock: 
+            ^{
+              [session removeTask: task];
+            }];
+        }];
+    }
+  else
+    {
+      if (NSURLSessionTaskStateCompleted != [task state])
+        {
+          [task setState: NSURLSessionTaskStateCompleted];
+          [[session workQueue] addOperationWithBlock: 
+            ^{
+              [session removeTask: task];
+            }];
+        }
+    }
+
+  [task invalidateProtocol];
 }
 
 - (void) URLProtocol: (NSURLProtocol *)protocol
   didCancelAuthenticationChallenge: (NSURLAuthenticationChallenge *)challenge
 {
-  //TODO
+  //FIXME
 }
 
 @end
@@ -472,84 +643,117 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 
 - (void) cancel
 {
-  [_workQueue addSynchronousOperationWithBlock: ^{
-    if (!(NSURLSessionTaskStateRunning == _state
-      || NSURLSessionTaskStateSuspended == _state))
-      {
-        return;
-      }
+  [_workQueue addSynchronousOperationWithBlock: 
+    ^{
+      if (!(NSURLSessionTaskStateRunning == _state
+        || NSURLSessionTaskStateSuspended == _state))
+        {
+          return;
+        }
 
-    _state = NSURLSessionTaskStateCanceling;
+      _state = NSURLSessionTaskStateCanceling;
 
-    NSLog(@"Cancelling"); //TODO
-  }];
+      NSURLProtocol  *protocol;
+
+      protocol = [self protocol];
+
+      [_workQueue addOperationWithBlock:
+        ^{
+          _error = [[NSError alloc] initWithDomain: NSURLErrorDomain 
+                                              code: NSURLErrorCancelled 
+                                          userInfo: nil];
+          if (nil != protocol)
+            {
+              id<NSURLProtocolClient> client;
+
+              [protocol stopLoading];
+              if (nil != (client = [protocol client]))
+                {
+                  [client URLProtocol: protocol didFailWithError: _error];
+                }
+            }
+        }];
+    }];
 }
 
 - (void) suspend
 {
-  [_workQueue addSynchronousOperationWithBlock: ^{
-    if (NSURLSessionTaskStateCanceling == _state
-      || NSURLSessionTaskStateCompleted == _state)
-      {
-        return;
-      }
+  [_workQueue addSynchronousOperationWithBlock: 
+    ^{
+      if (NSURLSessionTaskStateCanceling == _state
+        || NSURLSessionTaskStateCompleted == _state)
+        {
+          return;
+        }
 
-    _suspendCount++;
+      _suspendCount++;
 
-    [self updateTaskState];
+      [self updateTaskState];
 
-    if (1 == _suspendCount)
-      {
-        NSLog(@"Suspending"); //TODO
-      }    
-  }];
+      if (1 == _suspendCount)
+        {
+          NSURLProtocol  *protocol;
+
+          protocol = [self protocol];
+
+          [_workQueue addOperationWithBlock: 
+            ^{
+              if (nil != protocol)
+                {
+                  [protocol stopLoading];
+                }
+            }];
+        }    
+    }];
 }
 
 - (void) resume
 {
-  [_workQueue addSynchronousOperationWithBlock: ^{
-    if (NSURLSessionTaskStateCanceling == _state
-      || NSURLSessionTaskStateCompleted == _state)
-      {
-        return;
-      }
+  [_workQueue addSynchronousOperationWithBlock: 
+    ^{
+      if (NSURLSessionTaskStateCanceling == _state
+        || NSURLSessionTaskStateCompleted == _state)
+        {
+          return;
+        }
 
-    if (_suspendCount > 0)
-      {
-        _suspendCount--;
-      }
+      if (_suspendCount > 0)
+        {
+          _suspendCount--;
+        }
 
-    [self updateTaskState];
+      [self updateTaskState];
 
-    if (0 == _suspendCount)
-      {
-        NSURLProtocol  *protocol;
-        
-        protocol = [self protocol];
+      if (0 == _suspendCount)
+        {
+          NSURLProtocol  *protocol;
+          
+          protocol = [self protocol];
 
-        [_workQueue addOperationWithBlock: ^{
-          if (nil != protocol)
-            {
-              [protocol startLoading];
-            }
-          else if (nil == _error)
-            {
-              NSDictionary          *userInfo;
-              _NSURLProtocolClient  *client;
+          [_workQueue addOperationWithBlock: 
+            ^{
+              if (nil != protocol)
+                {
+                  [protocol startLoading];
+                }
+              else if (nil == _error)
+                {
+                  NSDictionary          *userInfo;
+                  _NSURLProtocolClient  *client;
 
-              userInfo = [NSDictionary dictionaryWithObjectsAndKeys: 
-                [_originalRequest URL], NSURLErrorFailingURLErrorKey,
-                [[_originalRequest URL] absoluteString], NSURLErrorFailingURLStringErrorKey,
-                nil];
-              _error = [[NSError alloc] initWithDomain: NSURLErrorDomain 
-                                                  code: NSURLErrorUnsupportedURL 
-                                              userInfo: userInfo];
-              client = [[_NSURLProtocolClient alloc] init];
-              [client task: self didFailWithError: _error];
-            }
-        }];
-      }
-  }];
+                  userInfo = [NSDictionary dictionaryWithObjectsAndKeys: 
+                    [_originalRequest URL], NSURLErrorFailingURLErrorKey,
+                    [[_originalRequest URL] absoluteString], NSURLErrorFailingURLStringErrorKey,
+                    nil];
+                  _error = [[NSError alloc] initWithDomain: NSURLErrorDomain 
+                                                      code: NSURLErrorUnsupportedURL 
+                                                  userInfo: userInfo];
+                  client = [[_NSURLProtocolClient alloc] init];
+                  [client task: self didFailWithError: _error];
+                }
+            }];
+        }
+    }];
 }
 
 - (id) copyWithZone: (NSZone*)zone
@@ -639,6 +843,11 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
   [_protocolLock unlock];
 }
 
+- (void) setResponse: (NSURLResponse*)response
+{
+  ASSIGN(_response, response);
+}
+
 @end
 
 @implementation NSURLSessionDataTask
@@ -672,6 +881,16 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 - (void) setURLCache: (NSURLCache*)cache
 {
   ASSIGN(_URLCache, cache);
+}
+
+- (NSURLRequestCachePolicy) requestCachePolicy
+{
+  return _requestCachePolicy;
+}
+
+- (void) setRequestCachePolicy: (NSURLRequestCachePolicy)policy
+{
+  _requestCachePolicy = policy;
 }
 
 - (NSArray*) protocolClasses
