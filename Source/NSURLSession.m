@@ -2,6 +2,8 @@
 #import <Foundation/NSURLRequest.h>
 #import <Foundation/Foundation.h>
 
+#import <curl/curl.h>
+
 
 @interface NSURLSession()
 - (NSOperationQueue*) workQueue;
@@ -33,6 +35,36 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
   NSURLSessionTaskProtocolStateInvalidated = 2,  
 };
 
+@interface _NSMultiHandle: NSObject
+
+- (instancetype) initWithConfiguration: (NSURLSessionConfiguration*)configuration
+                             workQueue: (NSOperationQueue*)workQueue;
+
+- (int) handleRegisterSocket: (curl_socket_t)socket
+                         for: (CURL*)easyHandle
+                        what: (int)what
+             socketSourcePtr: (void*)socketptr;
+
+- (void) updateTimeoutTimerTo: (long)timeout;
+
+@end
+
+@interface _NSEasyHandle: NSObject
+//TODO
+@end
+
+@protocol _NSEasyHandleDelegate <NSObject>
+//TODO
+@end
+
+@interface _NSNativeProtocol: NSURLProtocol <_NSEasyHandleDelegate>
+//TODO
+@end
+
+@interface _NSHTTPURLProtocol: _NSNativeProtocol
+//TODO
+@end
+
 @interface NSOperationQueue (SynchronousBlock)
 
 - (void) addSynchronousOperationWithBlock: (GSBlockOperationBlock)block;
@@ -56,6 +88,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
   NSUInteger           _nextTaskIdentifier;
   NSMutableDictionary  *_tasks; /* task identifier -> task */
   BOOL                 _invalidated;
+  _NSMultiHandle         *_multiHandle;
 }
 
 + (NSURLSession *) sessionWithConfiguration: (NSURLSessionConfiguration*)configuration 
@@ -85,6 +118,9 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
       _nextTaskIdentifier = 0;
       ASSIGN(_tasks, [NSMutableDictionary dictionary]);
       _invalidated = NO;
+      _multiHandle = [[_NSMultiHandle alloc] initWithConfiguration: configuration
+                                                         workQueue: _workQueue];
+      [NSURLProtocol registerClass: [_NSHTTPURLProtocol class]];
     }
 
   return self;
@@ -96,6 +132,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
   DESTROY(_delegateQueue);
   DESTROY(_workQueue);
   DESTROY(_tasks);
+  DESTROY(_multiHandle);
   [super dealloc];
 }
 
@@ -860,7 +897,8 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 {
   if (nil != (self = [super init]))
     {
-      _protocolClasses = [NSArray arrayWithObjects: nil]; //TODO add HTTP protocol class
+      _protocolClasses = [NSArray arrayWithObjects: 
+        [_NSHTTPURLProtocol class], nil];
     }
 
   return self;
@@ -898,6 +936,26 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
   return _protocolClasses;
 }
 
+- (NSInteger) HTTPMaximumConnectionsPerHost
+{
+  return _HTTPMaximumConnectionsPerHost;
+}
+
+- (void) setHTTPMaximumConnectionsPerHost: (NSInteger)n
+{
+  _HTTPMaximumConnectionsPerHost = n;
+}
+
+- (BOOL) HTTPShouldUsePipelining
+{
+  return _HTTPShouldUsePipelining;
+}
+
+- (void) setHTTPShouldUsePipelining: (BOOL)flag
+{
+  _HTTPShouldUsePipelining = flag;
+}
+
 - (id) copyWithZone: (NSZone*)zone
 {
   NSURLSessionConfiguration *copy = [[[self class] alloc] init];
@@ -906,9 +964,116 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
     {
       copy->_URLCache = [_URLCache copy];
       copy->_protocolClasses = [_protocolClasses copyWithZone: zone];
+      copy->_HTTPMaximumConnectionsPerHost = _HTTPMaximumConnectionsPerHost;
+      copy->_HTTPShouldUsePipelining = _HTTPShouldUsePipelining;
     }
 
   return copy;
 }
+
+@end
+
+static int sock_cb (CURL *easyHandle, curl_socket_t socket, int what, void *userdata, void *socketptr)
+{
+  _NSMultiHandle  *multiHandle = (_NSMultiHandle*)userdata;
+
+  return [multiHandle handleRegisterSocket: socket
+                                       for: easyHandle
+                                      what: what
+                           socketSourcePtr: socketptr];
+}
+
+static int timeout_cb(CURLM *multi, long timeout, void *userdata)
+{
+  _NSMultiHandle  *multiHandle = (_NSMultiHandle*)userdata;
+
+  [multiHandle updateTimeoutTimerTo: timeout];
+
+  return 0;
+}
+
+@implementation _NSMultiHandle
+{
+  NSURLSessionConfiguration  *_configuration;
+  NSOperationQueue           *_workQueue;
+  CURLM                      *_rawHandle;
+  NSMutableArray             *_easyHandles;
+}
+
+- (instancetype) initWithConfiguration: (NSURLSessionConfiguration*)configuration
+                             workQueue: (NSOperationQueue*)workQueue
+{
+  if (nil != (self = [super init]))
+    {
+      ASSIGN(_configuration, configuration);
+      ASSIGN(_workQueue, workQueue);
+      _rawHandle = curl_multi_init();
+      ASSIGN(_easyHandles, [NSMutableArray array]);
+      [self setupCallbacks];
+      [self configureWithConfiguration: configuration];
+    }
+
+  return self;
+}
+
+- (void) dealloc
+{
+  NSEnumerator   *e;
+  _NSEasyHandle  *handle;
+
+  DESTROY(_configuration);
+  DESTROY(_workQueue);
+
+  e = [_easyHandles objectEnumerator];
+  while (nil != (handle = [e nextObject]))
+    {
+      curl_multi_remove_handle([handle rawHandle], _rawHandle);
+    }
+  DESTROY(_easyHandles);
+
+  curl_multi_cleanup(_rawHandle);
+
+  [super dealloc];
+}
+
+- (void) configureWithConfiguration: (NSURLSessionConfiguration*)configuration
+{
+  curl_multi_setopt(_rawHandle, CURLMOPT_PIPELINING, 
+    [configuration HTTPShouldUsePipelining] ? 3 : 2);
+}
+
+- (void) setupCallbacks
+{
+  curl_multi_setopt(_rawHandle, CURLMOPT_SOCKETDATA, self);
+  curl_multi_setopt(_rawHandle, CURLMOPT_SOCKETFUNCTION, sock_cb);
+  curl_multi_setopt(_rawHandle, CURLMOPT_TIMERDATA, self);
+  curl_multi_setopt(_rawHandle, CURLMOPT_TIMERFUNCTION, timeout_cb);
+}
+
+- (int) handleRegisterSocket: (curl_socket_t)socket
+                         for: (CURL*)easyHandle
+                        what: (int)what
+             socketSourcePtr: (void*)socketptr
+{
+  switch (what)
+    {
+      case CURL_POLL_NONE:
+      case CURL_POLL_IN:
+      case CURL_POLL_OUT:
+      case CURL_POLL_INOUT:
+      case CURL_POLL_REMOVE:
+        break; //TODO
+    }
+  return 0;
+}
+
+- (void) updateTimeoutTimerTo: (long)timeout
+{
+  //TODO
+}
+
+@end
+
+@implementation _NSEasyHandle
 
 @end

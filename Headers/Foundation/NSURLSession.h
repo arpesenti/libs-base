@@ -195,6 +195,8 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
   NSURLCache               *_URLCache;
   NSURLRequestCachePolicy  _requestCachePolicy;
   NSArray                  *_protocolClasses;
+  NSInteger                _HTTPMaximumConnectionsPerHost;
+  BOOL                     _HTTPShouldUsePipelining;
 }
 
 - (NSURLCache*) URLCache;
@@ -206,6 +208,14 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
 - (void) setRequestCachePolicy: (NSURLRequestCachePolicy)policy;
 
 - (NSArray*) protocolClasses;
+
+- (NSInteger) HTTPMaximumConnectionsPerHost;
+
+- (void) setHTTPMaximumConnectionsPerHost: (NSInteger)n;
+
+- (BOOL) HTTPShouldUsePipelining;
+
+- (void) setHTTPShouldUsePipelining: (BOOL)flag;
 
 @end
 
