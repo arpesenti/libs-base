@@ -166,7 +166,7 @@ static int _timer_function(CURL *easyHandle, int timeout, void *userdata) {
       idx++;
     }
 
-  NSAssert(!found, @"Handle not in list.");
+  NSAssert(found, @"Handle not in list.");
 
   handleMultiCode(curl_multi_remove_handle(_rawHandle, [easyHandle rawHandle]));
   [_easyHandles removeObjectAtIndex: idx];
