@@ -11,14 +11,7 @@
   dispatch_block_t   _handler;
 }
 
-- (dispatch_source_t) rawSource;
-- (void) setRawSource: (dispatch_source_t)source;
 - (NSInteger) milliseconds;
-- (void) setMilliseconds: (NSInteger)n;
-- (dispatch_queue_t) queue;
-- (void) setDispatchQueue: (dispatch_queue_t)queue;
-- (dispatch_block_t) handler;
-- (void) setHandler: (dispatch_block_t)block;
 
 - (instancetype) initWithQueue: (dispatch_queue_t)queue
                   milliseconds: (NSInteger)milliseconds
