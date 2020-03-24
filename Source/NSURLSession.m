@@ -9,6 +9,7 @@
 #import "GSMultiHandle.h"
 #import "GSEasyHandle.h"
 #import "GSTaskRegistry.h"
+#import "GSHTTPURLProtocol.h"
 
 
 @interface NSURLSession ()
@@ -107,7 +108,7 @@ static int nextSessionIdentifier()
       _invalidated = NO;
       _multiHandle = [[GSMultiHandle alloc] initWithConfiguration: configuration
                                                         workQueue: _workQueue];
-      //TODO [NSURLProtocol registerClass: ...];
+      [NSURLProtocol registerClass: [GSHTTPURLProtocol class]];
     }
 
   return self;
@@ -879,7 +880,8 @@ static int nextSessionIdentifier()
 {
   if (nil != (self = [super init]))
     {
-      _protocolClasses = [NSArray arrayWithObjects: nil]; //TODO add protocol class
+      _protocolClasses = [NSArray arrayWithObjects: 
+        [GSHTTPURLProtocol class], nil];
     }
 
   return self;
