@@ -46,7 +46,7 @@ static void handleMultiCode(int code)
     }
 }
 
-static int _socket_function(CURL *easyHandle, curl_socket_t socket, int what, void *userdata, void *socketptr) 
+static int curl_socket_function(CURL *easyHandle, curl_socket_t socket, int what, void *userdata, void *socketptr) 
 {
   GSMultiHandle  *handle = (GSMultiHandle*)userdata;
   
@@ -55,7 +55,7 @@ static int _socket_function(CURL *easyHandle, curl_socket_t socket, int what, vo
                     socketSourcePtr: socketptr];
 }
 
-static int _timer_function(CURL *easyHandle, int timeout, void *userdata) {
+static int curl_timer_function(CURL *easyHandle, int timeout, void *userdata) {
     GSMultiHandle  *handle = (GSMultiHandle*)userdata;
    
     [handle updateTimeoutTimerToValue: timeout];
@@ -117,10 +117,10 @@ static int _timer_function(CURL *easyHandle, int timeout, void *userdata) {
 - (void)setupCallbacks 
 {
   handleEasyCode(curl_multi_setopt(_rawHandle, CURLMOPT_SOCKETDATA, (void*)self));
-  handleEasyCode(curl_multi_setopt(_rawHandle, CURLMOPT_SOCKETFUNCTION, _socket_function));
+  handleEasyCode(curl_multi_setopt(_rawHandle, CURLMOPT_SOCKETFUNCTION, curl_socket_function));
 
   handleEasyCode(curl_multi_setopt(_rawHandle, CURLMOPT_TIMERDATA, (__bridge void *)self));
-  handleEasyCode(curl_multi_setopt(_rawHandle, CURLMOPT_TIMERFUNCTION, _timer_function));
+  handleEasyCode(curl_multi_setopt(_rawHandle, CURLMOPT_TIMERFUNCTION, curl_timer_function));
 }
 
 - (void) addHandle: (GSEasyHandle*)easyHandle
