@@ -48,10 +48,6 @@ typedef NS_ENUM(NSUInteger, GSSocketRegisterActionType) {
   dispatch_source_t _writeSource;
 }
 
-- (dispatch_source_t) readSource;
-- (void) setReadSource: (dispatch_source_t)source;
-- (dispatch_source_t) writeSource;
-- (void) setWriteSource: (dispatch_source_t)source;
 - (void) createSourcesWithAction: (GSSocketRegisterAction *)action
                           socket: (curl_socket_t)socket
                            queue: (dispatch_queue_t)queue
