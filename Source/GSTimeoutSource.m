@@ -35,4 +35,14 @@
   return _milliseconds;
 }
 
+- (dispatch_queue_t) queue
+{
+  return _queue;
+}
+
+- (dispatch_block_t) handler
+{
+  return _handler;
+}
+
 @end

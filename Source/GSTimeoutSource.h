@@ -13,6 +13,10 @@
 
 - (NSInteger) milliseconds;
 
+- (dispatch_queue_t) queue;
+
+- (dispatch_block_t) handler;
+
 - (instancetype) initWithQueue: (dispatch_queue_t)queue
                   milliseconds: (NSInteger)milliseconds
                        handler: (dispatch_block_t)handler;
