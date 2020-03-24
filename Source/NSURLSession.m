@@ -4,9 +4,17 @@
 
 #import <curl/curl.h>
 
+#import <dispatch/dispatch.h>
 
-@interface NSURLSession()
-- (NSOperationQueue*) workQueue;
+#import "GSMultiHandle.h"
+#import "GSEasyHandle.h"
+#import "GSTaskRegistry.h"
+
+
+@interface NSURLSession ()
+
+- (dispatch_queue_t) workQueue;
+
 @end
 
 @interface NSURLSessionTask()
@@ -35,36 +43,6 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
   NSURLSessionTaskProtocolStateInvalidated = 2,  
 };
 
-@interface _NSMultiHandle: NSObject
-
-- (instancetype) initWithConfiguration: (NSURLSessionConfiguration*)configuration
-                             workQueue: (NSOperationQueue*)workQueue;
-
-- (int) handleRegisterSocket: (curl_socket_t)socket
-                         for: (CURL*)easyHandle
-                        what: (int)what
-             socketSourcePtr: (void*)socketptr;
-
-- (void) updateTimeoutTimerTo: (long)timeout;
-
-@end
-
-@interface _NSEasyHandle: NSObject
-//TODO
-@end
-
-@protocol _NSEasyHandleDelegate <NSObject>
-//TODO
-@end
-
-@interface _NSNativeProtocol: NSURLProtocol <_NSEasyHandleDelegate>
-//TODO
-@end
-
-@interface _NSHTTPURLProtocol: _NSNativeProtocol
-//TODO
-@end
-
 @interface NSOperationQueue (SynchronousBlock)
 
 - (void) addSynchronousOperationWithBlock: (GSBlockOperationBlock)block;
@@ -82,13 +60,29 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 
 @end
 
+static dispatch_queue_t _globalVarSyncQ = NULL;
+static int sessionCounter = 0;
+static int nextSessionIdentifier() 
+{
+  if (NULL == _globalVarSyncQ) 
+    {
+      _globalVarSyncQ = dispatch_queue_create("org.gnustep.NSURLSession.GlobalVarSyncQ", DISPATCH_QUEUE_SERIAL);
+    }
+  dispatch_sync(_globalVarSyncQ, 
+    ^{
+      sessionCounter += 1;
+    });
+  return sessionCounter;
+}
+
 @implementation NSURLSession
 {
-  NSOperationQueue     *_workQueue;
+  int                  _identifier;
+  dispatch_queue_t     _workQueue;
   NSUInteger           _nextTaskIdentifier;
-  NSMutableDictionary  *_tasks; /* task identifier -> task */
   BOOL                 _invalidated;
-  _NSMultiHandle         *_multiHandle;
+  GSMultiHandle        *_multiHandle;
+  GSTaskRegistry       *_taskRegistry;
 }
 
 + (NSURLSession *) sessionWithConfiguration: (NSURLSessionConfiguration*)configuration 
@@ -110,17 +104,27 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 {
   if (nil != (self = [super init]))
     {
+      _taskRegistry = [[GSTaskRegistry alloc] init];
+      curl_global_init(CURL_GLOBAL_SSL);
+      _identifier = nextSessionIdentifier();
+      NSString *queueLabel = [NSString stringWithFormat: @"NSURLSession %d", _identifier];
+      _workQueue = dispatch_queue_create([queueLabel UTF8String], DISPATCH_QUEUE_SERIAL);
+      if (nil != queue)
+        {
+          ASSIGN(_delegateQueue, queue);
+        }
+      else
+        {
+          _delegateQueue = [[NSOperationQueue alloc] init];
+          [_delegateQueue setMaxConcurrentOperationCount: 1];
+        }
+      _delegate = delegate;
       ASSIGN(_configuration, configuration);
-      _delegate = delegate; 
-      ASSIGN(_delegateQueue, queue);
-      _workQueue = [[NSOperationQueue alloc] init];
-      [_workQueue setMaxConcurrentOperationCount: 1];
       _nextTaskIdentifier = 0;
-      ASSIGN(_tasks, [NSMutableDictionary dictionary]);
       _invalidated = NO;
-      _multiHandle = [[_NSMultiHandle alloc] initWithConfiguration: configuration
-                                                         workQueue: _workQueue];
-      [NSURLProtocol registerClass: [_NSHTTPURLProtocol class]];
+      _multiHandle = [[GSMultiHandle alloc] initWithConfiguration: configuration
+                                                        workQueue: _workQueue];
+      //TODO [NSURLProtocol registerClass: ...];
     }
 
   return self;
@@ -128,12 +132,16 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 
 - (void) dealloc
 {
+  DESTROY(_taskRegistry);
   DESTROY(_configuration);
   DESTROY(_delegateQueue);
-  DESTROY(_workQueue);
-  DESTROY(_tasks);
   DESTROY(_multiHandle);
   [super dealloc];
+}
+
+- (dispatch_queue_t) workQueue
+{
+  return _workQueue;
 }
 
 - (NSOperationQueue*) delegateQueue
@@ -163,47 +171,51 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 
 - (void) finishTasksAndInvalidate
 {
-  [_workQueue addOperationWithBlock: 
+  dispatch_async(_workQueue,
     ^{
       _invalidated = YES;
       
-      //TODO wait for tasks to finish
-
-      if (nil == _delegate)
-        {
-          return;
-        }
-
-      [_delegateQueue addOperationWithBlock: 
+      void (^invalidateSessionCallback)(void) = 
         ^{
-          if ([_delegate respondsToSelector: @selector(URLSession:didBecomeInvalidWithError:)])
-            {
-              [_delegate URLSession: self didBecomeInvalidWithError: nil];
+          if (nil == _delegate) return;
+          [self.delegateQueue addOperationWithBlock:
+            ^{
+              if ([_delegate respondsToSelector: @selector(URLSession:didBecomeInvalidWithError:)]) 
+                {
+                  [_delegate URLSession: self didBecomeInvalidWithError: nil];
+                }
               _delegate = nil;
-            }
-        }];
-    }];
+            }];
+        };
+
+      if (![_taskRegistry isEmpty]) 
+        {
+          [_taskRegistry notifyOnTasksCompletion: invalidateSessionCallback];
+        }
+      else 
+        {
+          invalidateSessionCallback();
+        }
+    });
 }
 
 - (void) invalidateAndCancel
 {
   NSEnumerator      *e;
-  NSNumber          *identifier;
   NSURLSessionTask  *task;
 
-  [_workQueue addSynchronousOperationWithBlock: 
+  dispatch_sync(_workQueue, 
     ^{
       _invalidated = YES;
-    }];
+    });
 
-  e = [_tasks keyEnumerator];
-  while (nil != (identifier = [e nextObject]))
+  e = [[_taskRegistry allTasks] objectEnumerator];
+  while (nil != (task = [e nextObject]))
     {
-      task = [_tasks objectForKey: identifier];
       [task cancel];
     }
 
-  [_workQueue addOperationWithBlock: 
+  dispatch_async(_workQueue,
     ^{
       if (nil == _delegate)
         {
@@ -215,10 +227,10 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
           if ([_delegate respondsToSelector: @selector(URLSession:didBecomeInvalidWithError:)])
             {
               [_delegate URLSession: self didBecomeInvalidWithError: nil];
-              _delegate = nil;
             }
+          _delegate = nil;
         }];
-    }];
+    });
 }
 
 - (NSURLSessionDataTask*) dataTaskWithRequest: (NSURLRequest*)request
@@ -251,23 +263,12 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 
 - (void) addTask: (NSURLSessionTask*)task
 {
-  NSNumber  *identifier;
-
-  identifier = [NSNumber numberWithUnsignedInteger: [task taskIdentifier]];
-  [_tasks setObject: task forKey: identifier];
+  [_taskRegistry addTask: task];
 }
 
 - (void) removeTask: (NSURLSessionTask*)task
 {
-  NSNumber  *identifier;
-
-  identifier = [NSNumber numberWithUnsignedInteger: [task taskIdentifier]];
-  [_tasks removeObjectForKey: identifier];
-}
-
-- (NSOperationQueue*) workQueue
-{
-  return _workQueue;
+  [_taskRegistry removeTask: task];
 }
 
 @end
@@ -345,10 +346,10 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
             }
 
           [task setState: NSURLSessionTaskStateCompleted];
-          [[session workQueue] addOperationWithBlock: 
+          dispatch_async([session workQueue],  
             ^{
               [session removeTask: task];
-            }];
+            });
         }];
     }
   else
@@ -359,10 +360,10 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
         }
 
       [task setState: NSURLSessionTaskStateCompleted];
-      [[session workQueue] addOperationWithBlock: 
+      dispatch_async([session workQueue], 
         ^{
           [session removeTask: task];
-        }];
+        });
     }
   
   [task invalidateProtocol];
@@ -518,10 +519,10 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
           
           [task setState: NSURLSessionTaskStateCompleted];
 
-          [[session workQueue] addOperationWithBlock: 
+          dispatch_async([session workQueue],
             ^{
               [session removeTask: task];
-            }];
+            });
         }];
     }
   else
@@ -529,10 +530,10 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
       if (NSURLSessionTaskStateCompleted != [task state])
         {
           [task setState: NSURLSessionTaskStateCompleted];
-          [[session workQueue] addOperationWithBlock: 
+          dispatch_async([session workQueue],
             ^{
               [session removeTask: task];
-            }];
+            });
         }
     }
 
@@ -550,7 +551,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 @implementation NSURLSessionTask
 {
   NSURLSession                   *_session; /* not retained */
-  NSOperationQueue               *_workQueue;
+  dispatch_queue_t               _workQueue;
   NSUInteger                     _suspendCount;
   NSLock                         *_protocolLock;
   NSURLSessionTaskProtocolState  _protocolState;
@@ -571,8 +572,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
       ASSIGN(_originalRequest, request);
       ASSIGN(_currentRequest, request);
       _taskIdentifier = identifier;
-      _workQueue = [[NSOperationQueue alloc] init];
-      [_workQueue setMaxConcurrentOperationCount: 1];
+      _workQueue = dispatch_queue_create_with_target("org.gnustep.NSURLSessionTask.WrokQueue", DISPATCH_QUEUE_SERIAL, [session workQueue]);
       _state = NSURLSessionTaskStateSuspended;
       _suspendCount = 1;
       _protocolLock = [[NSLock alloc] init];
@@ -599,7 +599,6 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
   DESTROY(_response);
   DESTROY(_taskDescription);
   DESTROY(_error);
-  DESTROY(_workQueue);
   DESTROY(_protocolLock);
   [super dealloc];
 }
@@ -680,7 +679,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 
 - (void) cancel
 {
-  [_workQueue addSynchronousOperationWithBlock: 
+  dispatch_sync(_workQueue, 
     ^{
       if (!(NSURLSessionTaskStateRunning == _state
         || NSURLSessionTaskStateSuspended == _state))
@@ -694,7 +693,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 
       protocol = [self protocol];
 
-      [_workQueue addOperationWithBlock:
+      dispatch_async(_workQueue,
         ^{
           _error = [[NSError alloc] initWithDomain: NSURLErrorDomain 
                                               code: NSURLErrorCancelled 
@@ -709,13 +708,13 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
                   [client URLProtocol: protocol didFailWithError: _error];
                 }
             }
-        }];
-    }];
+        });
+    });
 }
 
 - (void) suspend
 {
-  [_workQueue addSynchronousOperationWithBlock: 
+  dispatch_sync(_workQueue, 
     ^{
       if (NSURLSessionTaskStateCanceling == _state
         || NSURLSessionTaskStateCompleted == _state)
@@ -733,20 +732,20 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 
           protocol = [self protocol];
 
-          [_workQueue addOperationWithBlock: 
+          dispatch_async(_workQueue, 
             ^{
               if (nil != protocol)
                 {
                   [protocol stopLoading];
                 }
-            }];
+            });
         }    
-    }];
+    });
 }
 
 - (void) resume
 {
-  [_workQueue addSynchronousOperationWithBlock: 
+  dispatch_sync(_workQueue, 
     ^{
       if (NSURLSessionTaskStateCanceling == _state
         || NSURLSessionTaskStateCompleted == _state)
@@ -767,7 +766,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
           
           protocol = [self protocol];
 
-          [_workQueue addOperationWithBlock: 
+          dispatch_async(_workQueue, 
             ^{
               if (nil != protocol)
                 {
@@ -788,9 +787,9 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
                   client = [[_NSURLProtocolClient alloc] init];
                   [client task: self didFailWithError: _error];
                 }
-            }];
+            });
         }
-    }];
+    });
 }
 
 - (id) copyWithZone: (NSZone*)zone
@@ -897,8 +896,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 {
   if (nil != (self = [super init]))
     {
-      _protocolClasses = [NSArray arrayWithObjects: 
-        [_NSHTTPURLProtocol class], nil];
+      _protocolClasses = [NSArray arrayWithObjects: nil]; //TODO add protocol class
     }
 
   return self;
@@ -970,110 +968,5 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
 
   return copy;
 }
-
-@end
-
-static int sock_cb (CURL *easyHandle, curl_socket_t socket, int what, void *userdata, void *socketptr)
-{
-  _NSMultiHandle  *multiHandle = (_NSMultiHandle*)userdata;
-
-  return [multiHandle handleRegisterSocket: socket
-                                       for: easyHandle
-                                      what: what
-                           socketSourcePtr: socketptr];
-}
-
-static int timeout_cb(CURLM *multi, long timeout, void *userdata)
-{
-  _NSMultiHandle  *multiHandle = (_NSMultiHandle*)userdata;
-
-  [multiHandle updateTimeoutTimerTo: timeout];
-
-  return 0;
-}
-
-@implementation _NSMultiHandle
-{
-  NSURLSessionConfiguration  *_configuration;
-  NSOperationQueue           *_workQueue;
-  CURLM                      *_rawHandle;
-  NSMutableArray             *_easyHandles;
-}
-
-- (instancetype) initWithConfiguration: (NSURLSessionConfiguration*)configuration
-                             workQueue: (NSOperationQueue*)workQueue
-{
-  if (nil != (self = [super init]))
-    {
-      ASSIGN(_configuration, configuration);
-      ASSIGN(_workQueue, workQueue);
-      _rawHandle = curl_multi_init();
-      ASSIGN(_easyHandles, [NSMutableArray array]);
-      [self setupCallbacks];
-      [self configureWithConfiguration: configuration];
-    }
-
-  return self;
-}
-
-- (void) dealloc
-{
-  NSEnumerator   *e;
-  _NSEasyHandle  *handle;
-
-  DESTROY(_configuration);
-  DESTROY(_workQueue);
-
-  e = [_easyHandles objectEnumerator];
-  while (nil != (handle = [e nextObject]))
-    {
-      curl_multi_remove_handle([handle rawHandle], _rawHandle);
-    }
-  DESTROY(_easyHandles);
-
-  curl_multi_cleanup(_rawHandle);
-
-  [super dealloc];
-}
-
-- (void) configureWithConfiguration: (NSURLSessionConfiguration*)configuration
-{
-  curl_multi_setopt(_rawHandle, CURLMOPT_PIPELINING, 
-    [configuration HTTPShouldUsePipelining] ? 3 : 2);
-}
-
-- (void) setupCallbacks
-{
-  curl_multi_setopt(_rawHandle, CURLMOPT_SOCKETDATA, self);
-  curl_multi_setopt(_rawHandle, CURLMOPT_SOCKETFUNCTION, sock_cb);
-  curl_multi_setopt(_rawHandle, CURLMOPT_TIMERDATA, self);
-  curl_multi_setopt(_rawHandle, CURLMOPT_TIMERFUNCTION, timeout_cb);
-}
-
-- (int) handleRegisterSocket: (curl_socket_t)socket
-                         for: (CURL*)easyHandle
-                        what: (int)what
-             socketSourcePtr: (void*)socketptr
-{
-  switch (what)
-    {
-      case CURL_POLL_NONE:
-      case CURL_POLL_IN:
-      case CURL_POLL_OUT:
-      case CURL_POLL_INOUT:
-      case CURL_POLL_REMOVE:
-        break; //TODO
-    }
-  return 0;
-}
-
-- (void) updateTimeoutTimerTo: (long)timeout
-{
-  //TODO
-}
-
-@end
-
-@implementation _NSEasyHandle
 
 @end
