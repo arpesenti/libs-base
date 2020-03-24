@@ -167,11 +167,13 @@ GSBlocks.m \
 GSConcreteValue.m \
 GSCountedSet.m \
 GSDictionary.m \
+GSEasyHandle.m \
 GSFTPURLHandle.m \
 GSFormat.m \
 GSHTTPAuthentication.m \
 GSHTTPURLHandle.m \
 GSICUString.m \
+GSMultiHandle.m \
 GSOrderedSet.m \
 GSPrivateHash.m \
 GSQuickSort.m \
@@ -181,6 +183,8 @@ GSShellSort.m \
 GSSocketStream.m \
 GSStream.m \
 GSString.m \
+GSTaskRegistry.m \
+GSTimeoutSource.m \
 GSTimSort.m \
 GSTLS.m \
 GSValue.m \
