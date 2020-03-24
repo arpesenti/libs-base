@@ -415,5 +415,83 @@ static int _timer_function(CURL *easyHandle, int timeout, void *userdata) {
 @end
 
 @implementation GSSocketSources
-//TODO
+
+- (void) dealloc
+{
+  if (_readSource) 
+    {
+      dispatch_source_cancel(_readSource);
+    }
+  _readSource = NULL;
+
+  if (_writeSource) 
+    {
+      dispatch_source_cancel(_writeSource);
+    }
+  _writeSource = NULL;
+  [super dealloc];
+}
+
+- (void) createSourcesWithAction: (GSSocketRegisterAction*)action
+                          socket: (curl_socket_t)socket
+                           queue: (dispatch_queue_t)queue
+                         handler: (dispatch_block_t)handler 
+{
+  if ([action needsReadSource]) 
+    {
+      [self createReadSourceWithSocket: socket queue: queue handler: handler];
+    }
+
+  if ([action needsWriteSource]) 
+    {
+      [self createWriteSourceWithSocket: socket queue: queue handler: handler];
+    }
+}
+
+- (void) createReadSourceWithSocket: (curl_socket_t)socket
+                              queue: (dispatch_queue_t)queue
+                            handler: (dispatch_block_t)handler 
+{
+  dispatch_source_t s;
+
+  if (_readSource) 
+    {
+      return;
+    }
+
+  s = dispatch_source_create(DISPATCH_SOURCE_TYPE_READ, socket, 0, queue);
+  dispatch_source_set_event_handler(s, handler);
+  _readSource = s;
+  dispatch_resume(s);
+}
+
+- (void) createWriteSourceWithSocket: (curl_socket_t)socket
+                               queue: (dispatch_queue_t)queue
+                             handler: (dispatch_block_t)handler 
+{
+  dispatch_source_t s;
+
+  if (_writeSource) 
+    {
+      return;
+    }
+
+  s = dispatch_source_create(DISPATCH_SOURCE_TYPE_WRITE, socket, 0, queue);
+  dispatch_source_set_event_handler(s, handler);
+  _writeSource = s;
+  dispatch_resume(s);
+}
+
++ (instancetype) from: (void*)socketSourcePtr 
+{
+  if (!socketSourcePtr)
+    {
+      return nil;
+    }
+  else
+    {
+      return (GSSocketSources*)socketSourcePtr;
+    }
+}
+
 @end
