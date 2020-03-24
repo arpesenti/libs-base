@@ -43,23 +43,6 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskProtocolState) {
   NSURLSessionTaskProtocolStateInvalidated = 2,  
 };
 
-@interface NSOperationQueue (SynchronousBlock)
-
-- (void) addSynchronousOperationWithBlock: (GSBlockOperationBlock)block;
-
-@end
-
-@implementation NSOperationQueue (SynchronousBlock)
-
-- (void) addSynchronousOperationWithBlock: (GSBlockOperationBlock)block
-{
-  NSBlockOperation *bop = [NSBlockOperation blockOperationWithBlock: block];
-  NSArray *ops = [NSArray arrayWithObject: bop];
-  [self addOperations: ops waitUntilFinished: YES];
-}
-
-@end
-
 static dispatch_queue_t _globalVarSyncQ = NULL;
 static int sessionCounter = 0;
 static int nextSessionIdentifier() 
