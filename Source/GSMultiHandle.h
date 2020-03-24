@@ -32,9 +32,6 @@ typedef NS_ENUM(NSUInteger, GSSocketRegisterActionType) {
 @interface GSSocketRegisterAction : NSObject
 {
   GSSocketRegisterActionType  _type;
-  BOOL                        _needsReadSource;
-  BOOL                        _needsWriteSource;
-  BOOL                        _needsSource;
 }
 
 - (instancetype) initWithRawValue: (int)rawValue;
