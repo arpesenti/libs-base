@@ -172,8 +172,10 @@ GSFTPURLHandle.m \
 GSFormat.m \
 GSHTTPAuthentication.m \
 GSHTTPURLHandle.m \
+GSHTTPURLProtocol.m \
 GSICUString.m \
 GSMultiHandle.m \
+GSNativeProtocol.m \
 GSOrderedSet.m \
 GSPrivateHash.m \
 GSQuickSort.m \
