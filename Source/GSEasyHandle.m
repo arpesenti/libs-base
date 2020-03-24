@@ -201,6 +201,64 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
   handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_SEEKFUNCTION, curl_seek_function));
 }
 
+- (int) urlErrorCodeWithEasyCode: (int)easyCode 
+{
+    int failureErrno = (int)[self connectFailureErrno];
+    if (easyCode == CURLE_OK) 
+      {
+        return 0;
+      } 
+    else if (failureErrno == ECONNREFUSED) 
+      {
+        return NSURLErrorCannotConnectToHost;
+      } 
+    else if (easyCode == CURLE_UNSUPPORTED_PROTOCOL) 
+      {
+        return NSURLErrorUnsupportedURL;
+      } 
+    else if (easyCode == CURLE_URL_MALFORMAT) 
+      {
+        return NSURLErrorBadURL;
+      } 
+    else if (easyCode == CURLE_COULDNT_RESOLVE_HOST) 
+      {
+        return NSURLErrorCannotFindHost;
+      } 
+    else if (easyCode == CURLE_RECV_ERROR && failureErrno == ECONNRESET) 
+      {
+        return NSURLErrorNetworkConnectionLost;
+      } 
+    else if (easyCode == CURLE_SEND_ERROR && failureErrno == ECONNRESET) 
+      {
+        return NSURLErrorNetworkConnectionLost;
+      } 
+    else if (easyCode == CURLE_GOT_NOTHING) 
+      {
+        return NSURLErrorBadServerResponse;
+      }
+    else if (easyCode == CURLE_ABORTED_BY_CALLBACK) 
+      {
+        return NSURLErrorUnknown;
+      }
+    else if (easyCode == CURLE_COULDNT_CONNECT && failureErrno == ETIMEDOUT) 
+      {
+        return NSURLErrorTimedOut;
+      }
+    else if (easyCode == CURLE_OPERATION_TIMEDOUT) 
+      {
+        return NSURLErrorTimedOut;
+      } 
+    else 
+      {
+        return NSURLErrorUnknown;
+      }
+}
+
+- (void) setVerboseMode: (BOOL)flag 
+{
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_VERBOSE, flag ? 1 : 0));
+}
+
 - (void) setDebugOutput: (BOOL)flag 
                    task: (NSURLSessionTask*)task 
 {
@@ -211,9 +269,216 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
     } 
   else 
     {
-      handleEasyCode(curl_easy_setopt(self.rawHandle, CURLOPT_DEBUGDATA, NULL));
-      handleEasyCode(curl_easy_setopt(self.rawHandle, CURLOPT_DEBUGFUNCTION, NULL));
+      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_DEBUGDATA, NULL));
+      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_DEBUGFUNCTION, NULL));
     }
 }
+
+- (void) setPassHeadersToDataStream: (BOOL)flag 
+{
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_HEADER, flag ? 1 : 0));
+}
+
+- (void) setFollowLocation: (BOOL)flag 
+{
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_FOLLOWLOCATION, flag ? 1 : 0));
+}
+
+- (void) setProgressMeterOff: (BOOL)flag 
+{
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_NOPROGRESS, flag ? 1 : 0));
+}
+
+- (void) setSkipAllSignalHandling: (BOOL)flag 
+{
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_NOSIGNAL, flag ? 1 : 0));
+}
+
+- (void) setErrorBuffer: (char*)buffer 
+{
+    char *b = buffer ? buffer : _errorBuffer;
+    handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_ERRORBUFFER, b));
+}
+
+- (void) setFailOnHTTPErrorCode: (BOOL)flag 
+{
+    handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_FAILONERROR, flag ? 1 : 0));
+}
+
+- (void) setURL: (NSURL *)URL 
+{
+    ASSIGN(_URL, URL);
+    if (nil != [URL absoluteString]) 
+      {
+        handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_URL, [[URL absoluteString] UTF8String]));
+      }
+}
+
+-(void) setConnectToHost: (NSString*)host port: (NSInteger)port 
+{
+  if (nil != host) 
+    {
+      NSString *originHost = [_URL host];
+      NSString *value = nil;
+      if (port == 0) 
+        {
+          value = [NSString stringWithFormat:@"%@::%@", originHost, host];
+        } 
+      else 
+        {
+          value = [NSString stringWithFormat:@"%@:%lu:%@", 
+            originHost, port, host];
+        }
+      
+      struct curl_slist *connect_to = NULL;
+      connect_to = curl_slist_append(NULL, [value UTF8String]);
+      // TODO why CURLOPT_CONNECT_TO is missing?
+      // handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_CONNECT_TO, connect_to));
+    }
+}
+
+- (void) setSessionConfig: (NSURLSessionConfiguration*)config 
+{
+  ASSIGN(_config, config);
+}
+
+- (void) setAllowedProtocolsToHTTPAndHTTPS 
+{
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS));
+}
+
+- (void) setPreferredReceiveBufferSize: (NSInteger)size 
+{
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_BUFFERSIZE, MIN(size, CURL_MAX_WRITE_SIZE)));
+}
+
+- (void) setCustomHeaders: (NSArray*)headers 
+{
+  NSEnumerator  *e;
+  NSString      *h;
+
+  e = [headers objectEnumerator];
+  while (nil != (h = [e nextObject]))
+    {
+      _headerList = curl_slist_append(_headerList, [h UTF8String]);
+    }
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_HTTPHEADER, _headerList));
+}
+
+- (void) setAutomaticBodyDecompression: (BOOL)flag 
+{
+  if (flag) 
+    {
+      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_ACCEPT_ENCODING, ""));
+      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_HTTP_CONTENT_DECODING, 1));
+    } 
+  else 
+    {
+      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_ACCEPT_ENCODING, NULL));
+      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_HTTP_CONTENT_DECODING, 0));
+    }
+}
+
+- (void) setRequestMethod: (NSString*)method 
+{
+  if (nil == method) 
+    {
+      return;
+    }
+
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_CUSTOMREQUEST, [method UTF8String]));
+}
+
+- (void) setNoBody: (BOOL)flag 
+{
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_NOBODY, flag ? 1 : 0));
+}
+
+- (void) setUpload: (BOOL)flag 
+{
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_UPLOAD, flag ? 1 : 0));
+}
+
+- (void) setRequestBodyLength: (int64_t)length 
+{
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_INFILESIZE_LARGE, length));
+}
+
+- (void) setTimeout: (NSInteger)timeout 
+{
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_TIMEOUT, (long)timeout));
+}
+
+- (void) setProxy 
+{    
+  //TODO
+}
+
+- (void) updatePauseState: (GSEasyHandlePauseState)pauseState 
+{
+  NSUInteger send = pauseState & GSEasyHandlePauseStateSend;
+  NSUInteger receive = pauseState & GSEasyHandlePauseStateReceive;
+  int bitmask = 0 | (send ? CURLPAUSE_SEND : CURLPAUSE_SEND_CONT) | (receive ? CURLPAUSE_RECV : CURLPAUSE_RECV_CONT);
+  handleEasyCode(curl_easy_pause(_rawHandle, bitmask));
+}
+
+- (double) getTimeoutIntervalSpent 
+{
+  double timeSpent;
+  curl_easy_getinfo(_rawHandle, CURLINFO_TOTAL_TIME, &timeSpent);
+  return timeSpent / 1000;
+}
+
+- (long) connectFailureErrno 
+{
+  long _errno;
+  handleEasyCode(curl_easy_getinfo(_rawHandle, CURLINFO_OS_ERRNO, &_errno));
+  return _errno;
+}
+
+- (void) pauseSend 
+{
+  if (_pauseState & GSEasyHandlePauseStateSend) 
+    {
+      return;
+    }
+    
+    _pauseState = _pauseState | GSEasyHandlePauseStateSend;
+    [self updatePauseState: _pauseState];
+}
+
+- (void) unpauseSend {
+  if (!(_pauseState & GSEasyHandlePauseStateSend))
+    {
+      return;
+    }
+  
+  _pauseState = _pauseState ^ GSEasyHandlePauseStateSend;
+  [self updatePauseState: _pauseState];
+}
+
+- (void) pauseReceive {
+  if (_pauseState & GSEasyHandlePauseStateReceive) 
+    {
+      return;
+    }
+  
+  _pauseState = _pauseState | GSEasyHandlePauseStateReceive;
+  [self updatePauseState: _pauseState];
+}
+
+- (void) unpauseReceive 
+{
+  if (!(_pauseState & GSEasyHandlePauseStateReceive))
+    {
+      return;
+    }
+  
+  _pauseState = _pauseState ^ GSEasyHandlePauseStateReceive;
+  [self updatePauseState: _pauseState];
+}
+
+//TODO add remaining methods
 
 @end
