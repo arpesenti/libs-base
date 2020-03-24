@@ -339,7 +339,79 @@ static int _timer_function(CURL *easyHandle, int timeout, void *userdata) {
 @end
 
 @implementation GSSocketRegisterAction
-//TODO
+
+- (instancetype) initWithRawValue: (int)rawValue 
+{
+  if (nil != (self = [super init]))
+    {
+      switch (rawValue) {
+          case CURL_POLL_NONE:
+            _type = GSSocketRegisterActionTypeNone;
+            break;
+          case CURL_POLL_IN:
+            _type = GSSocketRegisterActionTypeRegisterRead;
+            break;
+          case CURL_POLL_OUT:
+            _type = GSSocketRegisterActionTypeRegisterWrite;
+            break;
+          case CURL_POLL_INOUT:
+            _type = GSSocketRegisterActionTypeRegisterReadAndWrite;
+            break;
+          case CURL_POLL_REMOVE:
+            _type = GSSocketRegisterActionTypeUnregister;
+            break;
+          default:
+            NSAssert(NO, @"Invalid CURL_POLL value"); 
+      }
+    }
+
+  return self;
+}
+
+- (GSSocketRegisterActionType) type
+{
+  return _type;
+} 
+
+- (BOOL) needsReadSource 
+{
+  switch (self.type) 
+    {
+      case GSSocketRegisterActionTypeNone:
+        return false;
+      case GSSocketRegisterActionTypeRegisterRead:
+        return true;
+      case GSSocketRegisterActionTypeRegisterWrite:
+        return false;
+      case GSSocketRegisterActionTypeRegisterReadAndWrite:
+        return true;
+      case GSSocketRegisterActionTypeUnregister:
+        return false;
+    }
+}
+
+- (BOOL) needsWriteSource 
+{
+  switch (self.type) 
+    {
+      case GSSocketRegisterActionTypeNone:
+        return false;
+      case GSSocketRegisterActionTypeRegisterRead:
+        return false;
+      case GSSocketRegisterActionTypeRegisterWrite:
+        return true;
+      case GSSocketRegisterActionTypeRegisterReadAndWrite:
+        return true;
+      case GSSocketRegisterActionTypeUnregister:
+        return false;
+    }
+}
+
+- (BOOL)needsSource 
+{
+  return [self needsReadSource] || [self needsWriteSource];
+}
+
 @end
 
 @implementation GSSocketSources
