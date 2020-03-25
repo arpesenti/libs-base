@@ -479,6 +479,164 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
   [self updatePauseState: _pauseState];
 }
 
-//TODO add remaining methods
+- (NSInteger) didReceiveData: (char*)data 
+                        size: (NSInteger)size 
+                       nmemb: (NSInteger)nmemb 
+{
+  NSData              *buffer;
+  GSEasyHandleAction  action;
+
+  if (![_delegate respondsToSelector: @selector(didReceiveData:)])
+    {
+      return 0;
+    }
+
+  buffer = AUTORELEASE([[NSData alloc] initWithBytes: data length: size * nmemb]);
+  action = [_delegate didReceiveData: buffer];
+  switch (action) 
+    {
+      case GSEasyHandleActionProceed:
+        return size * nmemb;
+      case GSEasyHandleActionAbort:
+        return 0;
+      case GSEasyHandleActionPause:
+        _pauseState = _pauseState | GSEasyHandlePauseStateReceive;
+        return CURL_WRITEFUNC_PAUSE;
+    }
+}
+
+- (NSInteger) didReceiveHeaderData: (char*)headerData
+                              size: (NSInteger)size
+                             nmemb: (NSInteger)nmemb
+                     contentLength: (double)contentLength 
+{
+  NSData              *buffer;
+  GSEasyHandleAction  action;
+
+  buffer = AUTORELEASE([[NSData alloc] initWithBytes:headerData length:size * nmemb]);
+
+  [self setCookiesWithHeaderData: buffer];
+
+  if (![_delegate respondsToSelector: @selector(didReceiveHeaderData:contentLength:)]) 
+    {
+      return 0;
+    }
+
+  action = [_delegate didReceiveHeaderData: buffer 
+                             contentLength: (int64_t)contentLength];
+  switch (action) 
+    {
+      case GSEasyHandleActionProceed:
+        return size * nmemb;
+      case GSEasyHandleActionAbort:
+        return 0;
+      case GSEasyHandleActionPause:
+        _pauseState = _pauseState | GSEasyHandlePauseStateReceive;
+        return CURL_WRITEFUNC_PAUSE;
+    }
+}
+
+- (NSInteger) fillWriteBuffer: (char*)buffer 
+                         size: (NSInteger)size 
+                        nmemb: (NSInteger)nmemb 
+{
+  __block NSInteger d;
+  
+  if (![_delegate respondsToSelector: @selector(fillWriteBufferLength:result:)]) 
+    {
+      return CURL_READFUNC_ABORT;
+    }
+
+  [_delegate fillWriteBufferLength: size * nmemb
+    result: ^(GSEasyHandleWriteBufferResult result, NSInteger length, NSData *data) 
+      {
+        switch (result) 
+          {
+            case GSEasyHandleWriteBufferResultPause:
+              _pauseState = _pauseState | GSEasyHandlePauseStateSend;
+              d = CURL_READFUNC_PAUSE;
+              break;
+            case GSEasyHandleWriteBufferResultAbort:
+              d = CURL_READFUNC_ABORT;
+              break;
+            case GSEasyHandleWriteBufferResultBytes:
+              memcpy(buffer, [data bytes], length);
+              d = length;
+              break;
+          }
+      }];
+
+  return d;
+}
+
+- (int) seekInputStreamWithOffset: (int64_t)offset 
+                           origin: (NSInteger)origin 
+{
+  NSAssert(SEEK_SET == origin, @"Unexpected 'origin' in seek.");
+  
+  if (![_delegate respondsToSelector: @selector(seekInputStreamToPosition:)]) 
+    {
+      return CURL_SEEKFUNC_CANTSEEK;
+    }
+
+  if ([_delegate seekInputStreamToPosition: offset]) 
+    {
+      return CURL_SEEKFUNC_OK;
+    } 
+  else 
+    {
+      return CURL_SEEKFUNC_CANTSEEK;
+    }
+}
+
+- (void) setCookiesWithHeaderData: (NSData*)data 
+{
+  NSString       *headerLine; 
+  NSRange        r;
+  NSString       *head;
+  NSString       *tail;
+  NSCharacterSet *set;
+  NSString       *key;
+  NSString       *value;
+  NSArray        *cookies;
+  NSDictionary   *d;
+
+  if (nil != _config 
+    && NSHTTPCookieAcceptPolicyNever != [_config HTTPCookieAcceptPolicy] 
+    && nil != [_config HTTPCookieStorage]) 
+    {
+      headerLine = [[NSString alloc] initWithData: data 
+                                         encoding: NSUTF8StringEncoding];
+      if (0 == [headerLine length]) 
+        {
+          RELEASE(headerLine);
+          return;
+        }
+
+      r = [headerLine rangeOfString: @":"];
+      if (NSNotFound != r.location) 
+        {
+          head = [headerLine substringToIndex:r.location];
+          tail = [headerLine substringFromIndex:r.location + 1];
+          set = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+          key = [head stringByTrimmingCharactersInSet:set];
+          value = [tail stringByTrimmingCharactersInSet:set];
+
+          if (nil != key && nil != value) 
+            {
+              d = [NSDictionary dictionaryWithObject: value forKey: key];
+              cookies = [NSHTTPCookie cookiesWithResponseHeaderFields: d 
+                                                                forURL: _URL];
+              if ([cookies count] > 0)
+                {
+                  [[_config HTTPCookieStorage] setCookies: cookies 
+                                                   forURL: _URL 
+                                          mainDocumentURL: nil];
+                }
+            }
+        }
+      RELEASE(headerLine);
+    }
+}
 
 @end

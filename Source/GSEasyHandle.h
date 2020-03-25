@@ -22,10 +22,10 @@ typedef NS_ENUM(NSUInteger, GSEasyHandleWriteBufferResult) {
 
 @protocol GSEasyHandleDelegate <NSObject>
 
-- (GSEasyHandleAction) didReceiveWithData: (NSData*)data;
+- (GSEasyHandleAction) didReceiveData: (NSData*)data;
 
-- (GSEasyHandleAction) didReceiveWithHeaderData: (NSData*)data 
-                                  contentLength: (int64_t)contentLength;
+- (GSEasyHandleAction) didReceiveHeaderData: (NSData*)data 
+                              contentLength: (int64_t)contentLength;
 
 - (void) transferCompletedWithError: (NSError*)error;
 
