@@ -163,6 +163,31 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
   [super dealloc];
 }
 
+- (CURL*) rawHandle
+{
+  return _rawHandle;
+}
+
+- (char*) errorBuffer
+{
+  return _errorBuffer;
+}
+
+- (GSTimeoutSource*) timeoutTimer
+{
+  return _timeoutTimer;
+}
+
+- (void) setTimeoutTimer: (GSTimeoutSource*)timer
+{
+  ASSIGN(_timeoutTimer, timer);
+}
+
+- (NSURL*) URL
+{
+  return _URL;
+}
+
 - (void) transferCompletedWithError: (NSError*)error 
 {
   [_delegate transferCompletedWithError: error];
