@@ -3,6 +3,7 @@
 
 #import <Foundation/NSObject.h>
 #import <Foundation/NSURLRequest.h>
+#import <Foundation/NSHTTPCookieStorage.h>
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_9,GS_API_LATEST)
 @protocol NSURLSessionDelegate;
@@ -197,6 +198,8 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
   NSArray                  *_protocolClasses;
   NSInteger                _HTTPMaximumConnectionsPerHost;
   BOOL                     _HTTPShouldUsePipelining;
+  NSHTTPCookieAcceptPolicy _HTTPCookieAcceptPolicy;
+  NSHTTPCookieStorage      *_HTTPCookieStorage;
 }
 
 - (NSURLCache*) URLCache;
@@ -216,6 +219,14 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
 - (BOOL) HTTPShouldUsePipelining;
 
 - (void) setHTTPShouldUsePipelining: (BOOL)flag;
+
+- (NSHTTPCookieAcceptPolicy) HTTPCookieAcceptPolicy;
+
+- (void) setHTTPCookieAcceptPolicy: (NSHTTPCookieAcceptPolicy)policy;
+
+- (NSHTTPCookieStorage*) HTTPCookieStorage;
+
+- (void) setHTTPCookieStorage: (NSHTTPCookieStorage*)storage;
 
 @end
 
