@@ -53,12 +53,15 @@ typedef NS_ENUM(NSUInteger, GSEasyHandleWriteBufferResult) {
 }
 
 - (CURL*) rawHandle;
-- (void) setRawHandle: (CURL*)handle;
+
 - (char*) errorBuffer;
-- (void) setErrorBuffer: (char*)buffer;
+
 - (GSTimeoutSource*) timeoutTimer;
+
 - (void) setTimeoutTimer: (GSTimeoutSource*)timer;
+
 - (NSURL*) URL;
+
 - (void) setURL: (NSURL*)URL;
 
 - (instancetype) initWithDelegate: (id<GSEasyHandleDelegate>)delegate;
