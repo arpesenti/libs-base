@@ -939,6 +939,26 @@ static int nextSessionIdentifier()
   _HTTPShouldUsePipelining = flag;
 }
 
+- (NSHTTPCookieAcceptPolicy) HTTPCookieAcceptPolicy
+{
+  return _HTTPCookieAcceptPolicy;
+}
+
+- (void) setHTTPCookieAcceptPolicy: (NSHTTPCookieAcceptPolicy)policy
+{
+  _HTTPCookieAcceptPolicy = policy;
+}
+
+- (NSHTTPCookieStorage*) HTTPCookieStorage
+{
+  return _HTTPCookieStorage;
+}
+
+- (void) setHTTPCookieStorage: (NSHTTPCookieStorage*)storage
+{
+  ASSIGN(_HTTPCookieStorage, storage);
+}
+
 - (id) copyWithZone: (NSZone*)zone
 {
   NSURLSessionConfiguration *copy = [[[self class] alloc] init];
@@ -949,6 +969,8 @@ static int nextSessionIdentifier()
       copy->_protocolClasses = [_protocolClasses copyWithZone: zone];
       copy->_HTTPMaximumConnectionsPerHost = _HTTPMaximumConnectionsPerHost;
       copy->_HTTPShouldUsePipelining = _HTTPShouldUsePipelining;
+      copy->_HTTPCookieAcceptPolicy = _HTTPCookieAcceptPolicy;
+      copy->_HTTPCookieStorage = [_HTTPCookieStorage copy];
     }
 
   return copy;
