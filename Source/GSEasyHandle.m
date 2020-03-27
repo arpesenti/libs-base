@@ -357,8 +357,7 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
       
       struct curl_slist *connect_to = NULL;
       connect_to = curl_slist_append(NULL, [value UTF8String]);
-      // TODO why CURLOPT_CONNECT_TO is missing?
-      // handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_CONNECT_TO, connect_to));
+      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_CONNECT_TO, connect_to));
     }
 }
 
