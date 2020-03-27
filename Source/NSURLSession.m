@@ -25,8 +25,6 @@
 
 - (NSURLProtocol*) protocol;
 
-- (NSURLSession*) session;
-
 - (void) setState: (NSURLSessionTaskState)state;
 
 - (void) invalidateProtocol;
@@ -65,7 +63,6 @@ static int nextSessionIdentifier()
   dispatch_queue_t     _workQueue;
   NSUInteger           _nextTaskIdentifier;
   BOOL                 _invalidated;
-  GSMultiHandle        *_multiHandle;
   GSTaskRegistry       *_taskRegistry;
 }
 

@@ -17,6 +17,7 @@
 @class NSURLResponse;
 @class NSError;
 @class NSURLCache;
+@class GSMultiHandle;
 
 @interface NSURLSession : NSObject
 {
@@ -24,6 +25,7 @@
   id <NSURLSessionDelegate>  _delegate;
   NSURLSessionConfiguration  *_configuration;
   NSString                   *_sessionDescription;
+  GSMultiHandle              *_multiHandle;
 }
 
 /*
@@ -150,6 +152,8 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
 - (NSURLSessionTaskState) state;
 
 - (NSError*) error;
+
+- (NSURLSession*) session;
 
 /* -cancel returns immediately, but marks a task as being canceled.
  * The task will signal -URLSession:task:didCompleteWithError: with an
