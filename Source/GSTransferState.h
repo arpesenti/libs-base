@@ -19,6 +19,8 @@ typedef NS_ENUM(NSUInteger, GSParsedResponseHeaderType) {
   GSParsedResponseHeaderType  _type;
 }
 
+- (GSParsedResponseHeaderType) type;
+
 - (instancetype) byAppendingHeaderLine: (NSData*)data;
 
 - (NSHTTPURLResponse*) createHTTPURLResponseForURL: (NSURL*)URL;
@@ -39,13 +41,21 @@ typedef NS_ENUM(NSUInteger, GSDataDrainType) {
   NSFileHandle    *_fileHandle;
 }
 
+- (GSDataDrainType) type;
+- (void) setType: (GSDataDrainType)type;
+
+- (NSData*) data;
+- (void) setData: (NSData*)data;
+
+- (NSFileHandle*) fileHandle;
+
 @end
 
 @interface GSTransferState: NSObject
 {
   NSURL                           *_url;
   GSParsedResponseHeader          *_parsedResponseHeader;
-  NSURLResponse                   *_response;
+  NSHTTPURLResponse               *_response;
   id<GSURLSessionTaskBodySource>  _requestBodySource;
   GSDataDrain                     *_bodyDataDrain;
   BOOL                            _isHeaderComplete;
