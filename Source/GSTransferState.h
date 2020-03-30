@@ -48,6 +48,7 @@ typedef NS_ENUM(NSUInteger, GSDataDrainType) {
 - (void) setData: (NSData*)data;
 
 - (NSFileHandle*) fileHandle;
+- (void) setFileHandle: (NSFileHandle*)handle;
 
 @end
 

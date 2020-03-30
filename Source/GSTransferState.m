@@ -236,7 +236,14 @@
 @end
 
 @implementation GSDataDrain
-//TODO
+
+- (void) dealloc
+{
+  DESTROY(_data);
+  DESTROY(_fileURL);
+  DESTROY(_fileHandle);
+  [super dealloc];
+}
 
 - (GSDataDrainType) type
 {
@@ -258,9 +265,24 @@
   ASSIGN(_data, data);
 }
 
+- (NSURL*) fileURL
+{
+  return _fileURL;
+}
+
+- (void) setFileURL: (NSURL*)url
+{
+  ASSIGN(_fileURL, url);
+}
+
 - (NSFileHandle*) fileHandle
 {
   return _fileHandle;
+}
+
+- (void) setFileHandle: (NSFileHandle*)handle
+{
+  ASSIGN(_fileHandle, handle);
 }
 
 @end
