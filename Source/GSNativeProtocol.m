@@ -1,4 +1,5 @@
 #import "GSNativeProtocol.h"
+#import "GSTransferState.h"
 
 
 typedef NS_ENUM(NSUInteger, GSNativeProtocolInternalState) {
@@ -89,6 +90,7 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 {
   GSEasyHandle                   *_easyHandle;
   GSNativeProtocolInternalState  _internalState;
+  GSTransferState                *_transferState;
 }
 
 - (instancetype) initWithTask: (NSURLSessionTask*)task 
@@ -197,6 +199,63 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
   NSAssert(GSNativeProtocolInternalStateTransferInProgress == _internalState,
     @"Received body data, but no transfer in progress.");
 
+  response = [self validateHeaderCompleteTransferState: _transferState];
+
+  if (nil != response)
+    {
+      [_transferState setResponse: response];
+    }
+
+  [self notifyDelegateAboutReceivedData: data];
+
+  _internalState = GSNativeProtocolInternalStateTransferInProgress;
+  ASSIGN(_transferState, [_transferState byAppendingBodyData: data]);
+
+  return GSEasyHandleActionProceed;
+}
+
+- (NSURLResponse*) validateHeaderCompleteTransferState: (GSTransferState*)ts 
+{
+  if (![ts isHeaderComplete]) 
+    {
+      NSAssert(NO, @"Received body data, but the header is not complete, yet.");
+    }
+  
+  return nil;
+}
+
+- (GSEasyHandleAction) didReceiveHeaderData: (NSData*)data 
+                              contentLength: (int64_t)contentLength
+{
+  //TODO
+}
+
+- (void) transferCompletedWithError: (NSError*)error
+{
+  //TODO
+}
+
+- (void) fillWriteBufferLength: (NSInteger)length
+                        result: (void (^)(GSEasyHandleWriteBufferResult result, NSInteger length, NSData *data))result
+{
+  //TODO
+}
+
+- (BOOL) seekInputStreamToPosition: (uint64_t)position
+{
+  //TODO
+}
+
+- (void) needTimeoutTimerToValue: (NSInteger)value
+{
+  //TODO
+}
+
+- (void) updateProgressMeterWithTotalBytesSent: (int64_t)totalBytesSent 
+                      totalBytesExpectedToSend: (int64_t)totalBytesExpectedToSend 
+                            totalBytesReceived: (int64_t)totalBytesReceived 
+                   totalBytesExpectedToReceive: (int64_t)totalBytesExpectedToReceive
+{
   //TODO
 }
 
