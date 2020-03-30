@@ -444,9 +444,14 @@
   }
 }
 
-- (BOOL)isHeaderComplete 
+- (BOOL) isHeaderComplete 
 {
   return _response != nil;
+}
+
+- (void) setResponse: (NSHTTPURLResponse*)response
+{
+  ASSIGN(_response, response);
 }
 
 @end
