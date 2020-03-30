@@ -39,7 +39,7 @@ typedef NS_ENUM(NSUInteger, GSEasyHandleWriteBufferResult) {
 - (void) updateProgressMeterWithTotalBytesSent: (int64_t)totalBytesSent 
                       totalBytesExpectedToSend: (int64_t)totalBytesExpectedToSend 
                             totalBytesReceived: (int64_t)totalBytesReceived 
-                   totalBytesExpectedToReceive:(int64_t)totalBytesExpectedToReceive;
+                   totalBytesExpectedToReceive: (int64_t)totalBytesExpectedToReceive;
 
 @end
 
