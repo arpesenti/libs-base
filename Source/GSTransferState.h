@@ -83,6 +83,10 @@ typedef NS_ENUM(NSUInteger, GSDataDrainType) {
 - (instancetype) byAppendingHTTPHeaderLineData: (NSData*)data 
                                          error: (NSError**)error;
 
+- (void) setResponse: (NSHTTPURLResponse*)response;
+
+- (BOOL) isHeaderComplete; 
+
 @end
 
 #endif
