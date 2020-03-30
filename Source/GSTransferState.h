@@ -59,7 +59,7 @@ typedef NS_ENUM(NSUInteger, GSDataDrainType) {
 {
   NSURL                           *_url;
   GSParsedResponseHeader          *_parsedResponseHeader;
-  NSHTTPURLResponse               *_response;
+  NSURLResponse                   *_response;
   id<GSURLSessionTaskBodySource>  _requestBodySource;
   GSDataDrain                     *_bodyDataDrain;
   BOOL                            _isHeaderComplete;
@@ -74,7 +74,7 @@ typedef NS_ENUM(NSUInteger, GSDataDrainType) {
 
 - (instancetype) initWithURL: (NSURL*)url
         parsedResponseHeader: (GSParsedResponseHeader*)parsedResponseHeader
-                    response: (NSHTTPURLResponse*)response
+                    response: (NSURLResponse*)response
                   bodySource: (id<GSURLSessionTaskBodySource>)bodySource
                bodyDataDrain: (GSDataDrain*)bodyDataDrain;
 
@@ -83,7 +83,7 @@ typedef NS_ENUM(NSUInteger, GSDataDrainType) {
 - (instancetype) byAppendingHTTPHeaderLineData: (NSData*)data 
                                          error: (NSError**)error;
 
-- (void) setResponse: (NSHTTPURLResponse*)response;
+- (void) setResponse: (NSURLResponse*)response;
 
 - (BOOL) isHeaderComplete; 
 
