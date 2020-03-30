@@ -312,7 +312,7 @@
 
 - (instancetype) initWithURL: (NSURL*)url
         parsedResponseHeader: (GSParsedResponseHeader*)parsedResponseHeader
-                    response: (NSHTTPURLResponse*)response
+                    response: (NSURLResponse*)response
                   bodySource: (id<GSURLSessionTaskBodySource>)bodySource
                bodyDataDrain: (GSDataDrain*)bodyDataDrain
 {
@@ -449,7 +449,7 @@
   return _response != nil;
 }
 
-- (void) setResponse: (NSHTTPURLResponse*)response
+- (void) setResponse: (NSURLResponse*)response
 {
   ASSIGN(_response, response);
 }
