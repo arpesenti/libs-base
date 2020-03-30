@@ -152,7 +152,7 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
     {
       [self setInternalState: GSNativeProtocolInternalStateTransferFailed];
       NSAssert(nil != [task error], @"Missing error for failed task");
-      [self completeTask: [task error]];
+      [self completeTaskWithError: [task error]];
     }
 }
 
@@ -192,6 +192,21 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
     }
 }
 
+- (void) resume
+{
+  //TODO
+}
+
+- (void) suspend
+{
+  //TODO
+}
+
+- (void) completeTaskWithError: (NSError*)error
+{
+  //TODO
+}
+
 - (GSEasyHandleAction) didReceiveData: (NSData*)data
 {
   NSURLResponse  *response;
@@ -224,10 +239,16 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
   return nil;
 }
 
+- (void) notifyDelegateAboutReceivedData: (NSData*)data
+{
+  //TODO
+}
+
 - (GSEasyHandleAction) didReceiveHeaderData: (NSData*)data 
                               contentLength: (int64_t)contentLength
 {
   //TODO
+  return GSEasyHandleActionAbort;
 }
 
 - (void) transferCompletedWithError: (NSError*)error
@@ -244,6 +265,7 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 - (BOOL) seekInputStreamToPosition: (uint64_t)position
 {
   //TODO
+  return NO;
 }
 
 - (void) needTimeoutTimerToValue: (NSInteger)value
