@@ -23,6 +23,11 @@
   [super dealloc];
 }
 
+- (GSParsedResponseHeaderType) type
+{
+  return _type;
+}
+
 - (void) setType: (GSParsedResponseHeaderType)type
 {
   _type = type;
@@ -232,6 +237,32 @@
 
 @implementation GSDataDrain
 //TODO
+
+- (GSDataDrainType) type
+{
+  return _type;
+}
+
+- (void) setType: (GSDataDrainType)type
+{
+  _type = type;
+}
+
+- (NSData*) data
+{
+  return _data;
+}
+
+- (void) setData: (NSData*)data
+{
+  ASSIGN(_data, data);
+}
+
+- (NSFileHandle*) fileHandle
+{
+  return _fileHandle;
+}
+
 @end
 
 @implementation GSTransferState
@@ -239,28 +270,43 @@
 - (instancetype) initWithURL: (NSURL*)url
                bodyDataDrain: (GSDataDrain*)bodyDataDrain
 {
-  if (nil != (self = [super init]))
-    {
-      ASSIGN(_url, url);
-      _parsedResponseHeader = [[GSParsedResponseHeader alloc] init];
-      _response = nil;
-      _requestBodySource = nil;
-      ASSIGN(_bodyDataDrain, bodyDataDrain);
-    }
-  
-  return self;
+  return [self initWithURL: url
+      parsedResponseHeader: nil
+                  response: nil
+                bodySource: nil
+             bodyDataDrain: bodyDataDrain];
 }
 
 - (instancetype) initWithURL: (NSURL*)url
                bodyDataDrain: (GSDataDrain*)bodyDataDrain
                   bodySource: (id<GSURLSessionTaskBodySource>)bodySource
 {
+  return [self initWithURL: url
+      parsedResponseHeader: nil
+                  response: nil
+                bodySource: bodySource
+             bodyDataDrain: bodyDataDrain];
+}
+
+- (instancetype) initWithURL: (NSURL*)url
+        parsedResponseHeader: (GSParsedResponseHeader*)parsedResponseHeader
+                    response: (NSHTTPURLResponse*)response
+                  bodySource: (id<GSURLSessionTaskBodySource>)bodySource
+               bodyDataDrain: (GSDataDrain*)bodyDataDrain
+{
   if (nil != (self = [super init]))
     {
       ASSIGN(_url, url);
-      _parsedResponseHeader = [[GSParsedResponseHeader alloc] init];
-      _response = nil;
-      _requestBodySource = bodySource;
+      if (nil != parsedResponseHeader)
+        {
+          ASSIGN(_parsedResponseHeader, parsedResponseHeader);
+        }
+      else
+        {
+          _parsedResponseHeader = [[GSParsedResponseHeader alloc] init];
+        }  
+      ASSIGN(_response, response);
+      ASSIGN(_requestBodySource, bodySource);
       ASSIGN(_bodyDataDrain, bodyDataDrain);
     }
   
@@ -277,14 +323,108 @@
   [super dealloc];
 }
 
-- (void) appendHTTPHeaderLine: (NSData*)data
+- (instancetype) byAppendingBodyData: (NSData*)bodyData 
 {
-  [_parsedResponseHeader appendHTTPHeaderLine: data];
-  if ([_parsedResponseHeader isComplete])
+  switch ([_bodyDataDrain type]) 
     {
+      case GSDataDrainInMemory: 
+        {
+          NSMutableData    *data;
+          GSDataDrain      *dataDrain;
+          GSTransferState  *ts;
+          
+          data = [_bodyDataDrain data] ? 
+            AUTORELEASE([[_bodyDataDrain data] mutableCopy]) 
+            : [NSMutableData data];
+          
+          [data appendData: bodyData];
+          dataDrain = AUTORELEASE([[GSDataDrain alloc] init]);
+          [dataDrain setType: GSDataDrainInMemory];
+          [dataDrain setData: data];
 
+          ts = [[GSTransferState alloc] initWithURL: _url
+                               parsedResponseHeader: _parsedResponseHeader
+                                           response: _response
+                                         bodySource: _requestBodySource
+                                      bodyDataDrain: dataDrain];
+          return AUTORELEASE(ts);
+        }
+      case GSDataDrainTypeToFile: 
+        {
+          NSFileHandle *fileHandle;
+          
+          fileHandle = [_bodyDataDrain fileHandle];
+          [fileHandle seekToEndOfFile];
+          [fileHandle writeData: bodyData];
+
+          return self;
+        }
+      case GSDataDrainTypeIgnore:
+        return self;
     }
+}
 
+- (instancetype) byAppendingHTTPHeaderLineData: (NSData*)data 
+                                         error: (NSError**)error 
+{
+  GSParsedResponseHeader *h;
+  
+  h = [_parsedResponseHeader byAppendingHeaderLine: data];
+  if (nil == h) 
+    {
+      if (error != NULL) 
+        {
+          *error = [NSError errorWithDomain: NSURLErrorDomain
+                                       code: -1
+                                   userInfo: nil];
+        }
+      
+      return nil;
+  }
+
+  if ([h type] == GSParsedResponseHeaderTypeComplete) 
+    {
+      NSHTTPURLResponse       *response;
+      GSParsedResponseHeader  *ph;
+      GSTransferState         *ts;
+      
+      response = [h createHTTPURLResponseForURL: _url];
+      if (nil == response) 
+        {
+          if (error != NULL) 
+            {
+              *error = [NSError errorWithDomain: NSURLErrorDomain
+                                           code: -1
+                                       userInfo: nil];
+            }
+
+          return nil;
+      }
+
+      ph = AUTORELEASE([[GSParsedResponseHeader alloc] init]);
+      ts = [[GSTransferState alloc] initWithURL: _url
+                           parsedResponseHeader: ph
+                                       response: response
+                                     bodySource: _requestBodySource
+                                  bodyDataDrain: _bodyDataDrain];
+      return AUTORELEASE(ts);
+    } 
+  else 
+    {
+      GSTransferState *ts;
+      
+      ts = [[GSTransferState alloc] initWithURL: _url
+                           parsedResponseHeader: h
+                                       response: nil
+                                     bodySource: _requestBodySource
+                                  bodyDataDrain: _bodyDataDrain];
+      return AUTORELEASE(ts);
+  }
+}
+
+- (BOOL)isHeaderComplete 
+{
+  return _response != nil;
 }
 
 @end
