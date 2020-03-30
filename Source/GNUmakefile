@@ -188,6 +188,9 @@ GSString.m \
 GSTaskRegistry.m \
 GSTimeoutSource.m \
 GSTimSort.m \
+GSTransferState.m \
+GSURLSessionTaskBody.m \
+GSURLSessionTaskBodySource.m \
 GSTLS.m \
 GSValue.m \
 GSSocksParser/GSSocksParser.m \
