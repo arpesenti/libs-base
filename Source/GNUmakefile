@@ -167,15 +167,11 @@ GSBlocks.m \
 GSConcreteValue.m \
 GSCountedSet.m \
 GSDictionary.m \
-GSEasyHandle.m \
 GSFTPURLHandle.m \
 GSFormat.m \
 GSHTTPAuthentication.m \
 GSHTTPURLHandle.m \
-GSHTTPURLProtocol.m \
 GSICUString.m \
-GSMultiHandle.m \
-GSNativeProtocol.m \
 GSOrderedSet.m \
 GSPrivateHash.m \
 GSQuickSort.m \
@@ -185,12 +181,7 @@ GSShellSort.m \
 GSSocketStream.m \
 GSStream.m \
 GSString.m \
-GSTaskRegistry.m \
-GSTimeoutSource.m \
 GSTimSort.m \
-GSTransferState.m \
-GSURLSessionTaskBody.m \
-GSURLSessionTaskBodySource.m \
 GSTLS.m \
 GSValue.m \
 GSSocksParser/GSSocksParser.m \
@@ -340,7 +331,6 @@ NSUbiquitousKeyValueStore.m \
 NSUnarchiver.m \
 NSUndoManager.m \
 NSURL.m \
-NSURLSession.m \
 NSURLAuthenticationChallenge.m \
 NSURLCache.m \
 NSURLCredential.m \
@@ -371,33 +361,49 @@ objc-load.m
 
 ifneq ($(GNUSTEP_TARGET_OS), mingw32)
   ifneq ($(GNUSTEP_TARGET_OS), mingw64)
-BASE_MFILES += \
-GSFileHandle.m \
-NSMessagePort.m \
-NSMessagePortNameServer.m
+    BASE_MFILES += \
+	GSFileHandle.m \
+	NSMessagePort.m \
+	NSMessagePortNameServer.m
   endif
 endif
 
+ifeq ($(GNUSTEP_BASE_HAVE_LIBDISPATCH), 1)
+  BASE_MFILES += \
+	GSEasyHandle.m \
+	GSHTTPURLProtocol.m \
+	GSMultiHandle.m \
+	GSNativeProtocol.m \
+	GSTaskRegistry.m \
+	GSTimeoutSource.m \
+	GSTransferState.m \
+	GSURLSessionTaskBody.m \
+	GSURLSessionTaskBodySource.m \
+	NSURLSession.m
+endif
+
 ifeq ($(GNUSTEP_BASE_HAVE_MDNS), 1)
-  BASE_MFILES += NSNetServices.m \
-                 GSMDNSNetServices.m
+  BASE_MFILES += \
+	GSMDNSNetServices.m \
+	NSNetServices.m
 endif
 
 ifeq ($(GNUSTEP_BASE_HAVE_AVAHI), 1)
-  BASE_MFILES += NSNetServices.m \
-                 GSAvahiNetService.m \
-                 GSAvahiNetServiceBrowser.m \
-                 GSAvahiClient.m \
-                 GSAvahiRunLoopIntegration.m
+  BASE_MFILES += \
+	GSAvahiNetService.m \
+	GSAvahiNetServiceBrowser.m \
+	GSAvahiClient.m \
+	GSAvahiRunLoopIntegration.m \
+	NSNetServices.m
 endif
 
 ifeq ($(WITH_FFI),libffi)
-GNU_MFILES += cifframe.m
-BASE_MFILES += GSFFIInvocation.m
+  GNU_MFILES += cifframe.m
+  BASE_MFILES += GSFFIInvocation.m
 endif
 ifeq ($(WITH_FFI),ffcall)
-GNU_MFILES += callframe.m
-BASE_MFILES += GSFFCallInvocation.m
+  GNU_MFILES += callframe.m
+  BASE_MFILES += GSFFCallInvocation.m
 endif
 
 BASE_OTHER_SRCFILES = \
