@@ -395,7 +395,6 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 {
   NSURLRequest        *request;
   NSURLResponse       *response;
-  NSURLRequest        *rr;
   GSCompletionAction  *action;
 
   if (nil != error) 
