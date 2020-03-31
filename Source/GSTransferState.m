@@ -449,9 +449,19 @@
   return _response != nil;
 }
 
+- (NSURLResponse*) response
+{
+  return _response;
+}
+
 - (void) setResponse: (NSURLResponse*)response
 {
   ASSIGN(_response, response);
+}
+
+- (id<GSURLSessionTaskBodySource>) requestBodySource
+{
+  return _requestBodySource;
 }
 
 @end
