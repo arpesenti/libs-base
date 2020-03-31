@@ -253,6 +253,15 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
 - (void )   URLSession: (NSURLSession*)session 
                   task: (NSURLSessionTask*)task
   didCompleteWithError: (NSError*)error;
+     
+/* Periodically informs the delegate of the progress of sending body content 
+ * to the server.
+ */
+- (void)       URLSession: (NSURLSession*)session 
+                     task: (NSURLSessionTask*)task 
+          didSendBodyData: (int64_t)bytesSent 
+           totalBytesSent: (int64_t)totalBytesSent 
+ totalBytesExpectedToSend: (int64_t)totalBytesExpectedToSend;
 
 @end
 

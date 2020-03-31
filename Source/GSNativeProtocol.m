@@ -86,6 +86,46 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 
 @end
 
+@implementation GSCompletionAction
+
+- (void) dealloc
+{
+  DESTROY(_redirectRequest);
+  [super dealloc];
+}
+
+- (GSCompletionActionType) type
+{
+  return _type;
+}
+
+- (void) setType: (GSCompletionActionType) type
+{
+  _type = type;
+}
+
+- (int) errorCode
+{
+  return _errorCode;
+}
+
+- (void) setErrorCode: (int)code
+{
+  _errorCode = code;
+}
+
+- (NSURLRequest*) redirectRequest
+{
+  return _redirectRequest;
+}
+
+- (void) setRedirectRequest: (NSURLRequest*)request
+{
+  ASSIGN(_redirectRequest, request);
+}
+
+@end
+
 @implementation GSNativeProtocol
 {
   GSEasyHandle                   *_easyHandle;
@@ -241,23 +281,188 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 
 - (void) notifyDelegateAboutReceivedData: (NSData*)data
 {
-  //TODO
+  NSURLSessionTask              *task;
+  id<NSURLSessionDelegate>      delegate;
+
+  task = [self task];
+
+  NSAssert(nil != task, @"Cannot notify");
+
+  delegate = [[task session] delegate];
+  if (nil != delegate
+    && [task isKindOfClass: [NSURLSessionDataTask class]]
+    && [delegate respondsToSelector: @selector(URLSession:dataTask:didReceiveData:)])
+    {
+      id<NSURLSessionDataDelegate> dataDelegate;
+      NSURLSessionDataTask         *dataTask;
+      NSURLSession                 *session;
+
+      session = [task session];
+      NSAssert(nil != session, @"Missing session");
+      dataDelegate = (id<NSURLSessionDataDelegate>)delegate;
+      dataTask = (NSURLSessionDataTask*)task;
+      [[session delegateQueue] addOperationWithBlock:
+        ^{
+          [dataDelegate URLSession: session 
+                          dataTask: dataTask 
+                    didReceiveData: data];
+        }];
+    }
+}
+
+- (void) notifyDelegateAboutUploadedDataCount: (int64_t)count 
+{
+  NSURLSessionTask              *task;
+  id<NSURLSessionDelegate>      delegate;
+
+  task = [self task];
+
+  NSAssert(nil != task, @"Cannot notify");
+
+  delegate = [[task session] delegate];
+  if (nil != delegate
+    && [task isKindOfClass: [NSURLSessionUploadTask class]]
+    && [delegate respondsToSelector: @selector(URLSession:task:didSendBodyData:totalBytesSent:totalBytesExpectedToSend:)])
+    {
+      id<NSURLSessionTaskDelegate> taskDelegate;
+      NSURLSession                 *session;
+
+      session = [task session];
+      NSAssert(nil != session, @"Missing session");
+      taskDelegate = (id<NSURLSessionTaskDelegate>)delegate;
+      [[session delegateQueue] addOperationWithBlock:
+        ^{
+          [taskDelegate URLSession: session
+                              task: task
+                   didSendBodyData: count
+                    totalBytesSent: [task countOfBytesSent]
+          totalBytesExpectedToSend: [task countOfBytesExpectedToSend]];
+        }];
+    }
 }
 
 - (GSEasyHandleAction) didReceiveHeaderData: (NSData*)data 
                               contentLength: (int64_t)contentLength
 {
-  //TODO
+  NSAssert(NO, @"Require concrete implementation");
   return GSEasyHandleActionAbort;
-}
-
-- (void) transferCompletedWithError: (NSError*)error
-{
-  //TODO
 }
 
 - (void) fillWriteBufferLength: (NSInteger)length
                         result: (void (^)(GSEasyHandleWriteBufferResult result, NSInteger length, NSData *data))result
+{
+  id<GSURLSessionTaskBodySource> source;
+
+  NSAssert(GSNativeProtocolInternalStateTransferInProgress == _internalState,
+    @"Requested to fill write buffer, but transfer isn't in progress.");
+  
+  source = [_transferState requestBodySource];
+
+  NSAssert(nil != source, 
+    @"Requested to fill write buffer, but transfer state has no body source.");
+
+  if (nil == result) 
+    {
+      return;
+    }
+
+  [source getNextChunkWithLength: length
+    completionHandler: ^(GSBodySourceDataChunk chunk, NSData *_Nullable data) 
+      {
+        switch (chunk) 
+          {
+            case GSBodySourceDataChunkData: 
+              {
+                NSUInteger count = [data length];
+                [self notifyDelegateAboutUploadedDataCount: (int64_t)count];
+                result(GSEasyHandleWriteBufferResultBytes, count, data);
+                break;
+              }
+            case GSBodySourceDataChunkDone:
+              result(GSEasyHandleWriteBufferResultBytes, 0, nil);
+              break;
+            case GSBodySourceDataChunkRetryLater:
+              result(GSEasyHandleWriteBufferResultPause, -1, nil);
+              break;
+            case GSBodySourceDataChunkError:
+              result(GSEasyHandleWriteBufferResultAbort, -1, nil);
+              break;
+          }
+      }];
+}
+
+- (void) transferCompletedWithError: (NSError*)error
+{
+  NSURLRequest        *request;
+  NSURLResponse       *response;
+  NSURLRequest        *rr;
+  GSCompletionAction  *action;
+
+  if (nil != error) 
+    {
+      [self setInternalState: GSNativeProtocolInternalStateTransferFailed];
+      [self failWithError: error request: [self request]];
+      return;
+    }
+
+  NSAssert(_internalState == GSNativeProtocolInternalStateTransferInProgress, 
+    @"Transfer completed, but it wasn't in progress.");
+
+  request = [[self task] currentRequest];
+  NSAssert(nil != request,
+    @"Transfer completed, but there's no current request.");
+
+  if (nil != [[self task] response]) 
+    {
+      [_transferState setResponse: [[self task] response]];
+    }
+
+  response = [_transferState response];
+  NSAssert(nil != response, @"Transfer completed, but there's no response.");
+
+  [self setInternalState: GSNativeProtocolInternalStateTransferCompleted];
+  
+  action = [self completeActionForCompletedRequest: request response: response];
+  switch ([action type])
+    {
+      case GSCompletionActionTypeCompleteTask:
+        [self completeTask];
+        break;
+      case GSCompletionActionTypeFailWithError:
+        [self setInternalState: GSNativeProtocolInternalStateTransferFailed];
+        error = [NSError errorWithDomain: NSURLErrorDomain 
+                                    code: [action errorCode] 
+                                userInfo: nil]; 
+        [self failWithError: error request: request];
+        break;
+      case GSCompletionActionTypeRedirectWithRequest:
+        [self redirectForRequest: [action redirectRequest]];
+        break;
+    }
+}
+
+- (GSCompletionAction*) completeActionForCompletedRequest: (NSURLRequest*)request
+                                                 response: (NSURLResponse*)response
+{
+  GSCompletionAction  *action;
+
+  action = AUTORELEASE([[GSCompletionAction alloc] init]);
+  [action setType: GSCompletionActionTypeCompleteTask];
+
+  return action;
+}
+
+- (void) completeTask
+{
+  //TODO
+}
+
+- (void) redirectForRequest: (NSURLRequest*)request
+{
+  NSAssert(NO, @"Require concrete implementation");
+}
+
+- (void) failWithError: (NSError*)error request: (NSURLRequest*)request
 {
   //TODO
 }
