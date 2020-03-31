@@ -28,8 +28,6 @@
 - (void) setState: (NSURLSessionTaskState)state;
 
 - (void) invalidateProtocol;
-
-- (void) setResponse: (NSURLResponse*)response;
 @end
 
 @interface NSURLSessionTask (URLProtocolClient) <NSURLProtocolClient>
@@ -532,8 +530,6 @@ static int nextSessionIdentifier()
 @implementation NSURLSessionTask
 {
   NSURLSession                   *_session; /* not retained */
-  dispatch_queue_t               _workQueue;
-  NSUInteger                     _suspendCount;
   NSLock                         *_protocolLock;
   NSURLSessionTaskProtocolState  _protocolState;
   NSURLProtocol                  *_protocol;
@@ -581,6 +577,7 @@ static int nextSessionIdentifier()
   DESTROY(_taskDescription);
   DESTROY(_error);
   DESTROY(_protocolLock);
+  DESTROY(_knownBody);
   [super dealloc];
 }
 
@@ -616,6 +613,11 @@ static int nextSessionIdentifier()
 - (NSURLResponse*) response
 {
   return _response;
+}
+
+- (void) setResponse: (NSURLResponse*)response
+{
+  ASSIGN(_response, response);
 }
 
 - (int64_t) countOfBytesReceived
@@ -858,11 +860,6 @@ static int nextSessionIdentifier()
   _protocolState = NSURLSessionTaskProtocolStateInvalidated;
   DESTROY(_protocol);
   [_protocolLock unlock];
-}
-
-- (void) setResponse: (NSURLResponse*)response
-{
-  ASSIGN(_response, response);
 }
 
 @end

@@ -91,6 +91,8 @@ typedef NS_ENUM(NSUInteger, GSDataDrainType) {
 
 - (id<GSURLSessionTaskBodySource>) requestBodySource;
 
+- (GSDataDrain*) bodyDataDrain;
+
 @end
 
 #endif

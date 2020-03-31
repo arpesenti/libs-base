@@ -34,8 +34,6 @@ typedef NS_ENUM(NSUInteger, GSEasyHandleWriteBufferResult) {
 
 - (BOOL) seekInputStreamToPosition: (uint64_t)position;
 
-- (void) needTimeoutTimerToValue: (NSInteger)value;
-
 - (void) updateProgressMeterWithTotalBytesSent: (int64_t)totalBytesSent 
                       totalBytesExpectedToSend: (int64_t)totalBytesExpectedToSend 
                             totalBytesReceived: (int64_t)totalBytesReceived 

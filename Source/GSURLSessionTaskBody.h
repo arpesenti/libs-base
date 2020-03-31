@@ -24,6 +24,14 @@ typedef NS_ENUM(NSUInteger, GSURLSessionTaskBodyType) {
 - (instancetype) initWithFileURL: (NSURL*)fileURL;
 - (instancetype) initWithInputStream: (NSInputStream*)inputStream;
 
+- (GSURLSessionTaskBodyType) type;
+
+- (NSData*) data;
+
+- (NSURL*) fileURL;
+
+- (NSInputStream*) inputStream;
+
 - (NSNumber*) getBodyLengthWithError: (NSError**)error;
 
 @end
