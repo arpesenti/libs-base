@@ -464,4 +464,9 @@
   return _requestBodySource;
 }
 
+- (GSDataDrain*) bodyDataDrain
+{
+  return _bodyDataDrain;
+}
+
 @end

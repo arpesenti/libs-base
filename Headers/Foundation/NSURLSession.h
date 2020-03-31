@@ -5,6 +5,8 @@
 #import <Foundation/NSURLRequest.h>
 #import <Foundation/NSHTTPCookieStorage.h>
 
+#import <dispatch/dispatch.h>
+
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_9,GS_API_LATEST)
 @protocol NSURLSessionDelegate;
 @protocol NSURLSessionTaskDelegate;
@@ -18,6 +20,7 @@
 @class NSError;
 @class NSURLCache;
 @class GSMultiHandle;
+@class GSURLSessionTaskBody;
 
 @interface NSURLSession : NSObject
 {
@@ -127,6 +130,9 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
                                                  * This property will be nil in 
                                                  * the event that no error 
                                                  * occured. */
+  dispatch_queue_t  _workQueue;
+  NSUInteger        _suspendCount;
+  GSURLSessionTaskBody  *_knownBody;
 }
 
 - (NSUInteger) taskIdentifier;
@@ -136,6 +142,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
 - (NSURLRequest*) currentRequest;
 
 - (NSURLResponse*) response;
+- (void) setResponse: (NSURLResponse*)response;
 
 - (int64_t) countOfBytesReceived;
 

@@ -53,6 +53,26 @@
   [super dealloc];
 }
 
+- (GSURLSessionTaskBodyType) type
+{
+  return _type;
+}
+
+- (NSData*) data
+{
+  return _data;
+}
+
+- (NSURL*) fileURL
+{
+  return _fileURL;
+}
+
+- (NSInputStream*) inputStream
+{
+  return _inputStream;
+}
+
 - (NSNumber*) getBodyLengthWithError: (NSError**)error 
 {
   switch (_type) 

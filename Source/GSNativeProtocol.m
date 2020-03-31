@@ -1,5 +1,6 @@
 #import "GSNativeProtocol.h"
 #import "GSTransferState.h"
+#import "GSURLSessionTaskBody.h"
 
 
 typedef NS_ENUM(NSUInteger, GSNativeProtocolInternalState) {
@@ -82,6 +83,63 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 - (void) addHandle: (GSEasyHandle*)handle
 {
   [_multiHandle addHandle: handle];
+}
+
+@end
+
+@interface NSURLSessionTask (Internal)
+
+- (void) setCurrentRequest: (NSURLRequest*)request;
+
+- (dispatch_queue_t) workQueue;
+
+- (NSUInteger) suspendCount;
+
+- (void) getBodyWithCompletion: (void (^)(GSURLSessionTaskBody *body))completion;
+
+- (void) setKnownBody: (GSURLSessionTaskBody*)body;
+
+- (void) setError: (NSError*)error;
+
+@end
+
+@implementation NSURLSessionTask (Internal)
+
+- (void) setCurrentRequest: (NSURLRequest*)request
+{
+  ASSIGN(_currentRequest, request);
+}
+
+- (dispatch_queue_t) workQueue
+{
+  return _workQueue;
+}
+
+- (NSUInteger) suspendCount
+{
+  return _suspendCount;
+}
+
+- (void) getBodyWithCompletion: (void (^)(GSURLSessionTaskBody *body))completion
+{
+  if (nil != _knownBody) 
+    {
+      completion(_knownBody);
+      return;
+    };
+
+  GSURLSessionTaskBody *body = AUTORELEASE([[GSURLSessionTaskBody alloc] init]);
+  completion(body);
+}
+
+- (void) setKnownBody: (GSURLSessionTaskBody*)body
+{
+  ASSIGN(_knownBody, body);
+}
+
+- (void) setError: (NSError*)error
+{
+  ASSIGN(_error, error);
 }
 
 @end
@@ -232,19 +290,189 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
     }
 }
 
+- (void) startNewTransferWithRequest: (NSURLRequest*)request 
+{
+  NSURLSessionTask  *task = [self task];
+
+  [task setCurrentRequest: request];
+
+  NSAssert(nil != [request URL], @"No URL in request.");
+
+  [task getBodyWithCompletion: ^(GSURLSessionTaskBody *body) 
+    {
+      [task setKnownBody: body];
+      [self setInternalState: GSNativeProtocolInternalStateTransferReady];
+      ASSIGN(_transferState, [self createTransferStateWithURL: [request URL] 
+                                                         body: body 
+                                                    workQueue: [task workQueue]]);
+      [self configureEasyHandleForRequest: request body: body];
+      if ([task suspendCount] < 1) 
+        {
+          [self resume];
+        }
+    }];
+}
+
+- (void) configureEasyHandleForRequest: (NSURLRequest*)request 
+                                  body: (GSURLSessionTaskBody*)body
+{
+  NSAssert(NO, @"Requires concrete implementation");
+}
+
+- (GSTransferState*) createTransferStateWithURL: (NSURL*)url
+                                           body: (GSURLSessionTaskBody*)body
+                                      workQueue: (dispatch_queue_t)workQueue 
+{
+    GSDataDrain *drain = [self createTransferBodyDataDrain];
+
+    switch ([body type]) 
+      {
+        case GSURLSessionTaskBodyTypeNone:
+          return AUTORELEASE([[GSTransferState alloc] initWithURL: url 
+                                                    bodyDataDrain: drain]);
+        case GSURLSessionTaskBodyTypeData: 
+          {
+            GSBodyDataSource *source;
+            
+            source = AUTORELEASE([[GSBodyDataSource alloc] initWithData: [body data]]);
+            return AUTORELEASE([[GSTransferState alloc] initWithURL: url 
+                                                      bodyDataDrain: drain 
+                                                         bodySource: source]);
+          }
+        case GSURLSessionTaskBodyTypeFile: 
+          {
+            GSBodyFileSource *source;
+            
+            source = AUTORELEASE([[GSBodyFileSource alloc] initWithFileURL: [body fileURL]
+                                                                 workQueue: workQueue
+                                                      dataAvailableHandler: ^{
+                                                        [_easyHandle unpauseSend];
+                                                      }]);
+            return AUTORELEASE([[GSTransferState alloc] initWithURL: url 
+                                                      bodyDataDrain: drain 
+                                                         bodySource: source]);
+          }
+        case GSURLSessionTaskBodyTypeStream: 
+          {
+            GSBodyStreamSource *source;
+            
+            source = AUTORELEASE([[GSBodyStreamSource alloc] initWithInputStream: [body inputStream]]);
+            return AUTORELEASE([[GSTransferState alloc] initWithURL: url 
+                                                      bodyDataDrain: drain 
+                                                         bodySource: source]);
+          }
+      }
+}
+
+- (GSDataDrain*) createTransferBodyDataDrain 
+{
+  NSURLSession *s = [[self task] session];
+  GSDataDrain  *dd = AUTORELEASE([[GSDataDrain alloc] init]);
+  
+  if (nil != [s delegate])
+    {
+      // Data will be forwarded to the delegate as we receive it, we don't
+      // need to do anything about it.
+      [dd setType: GSDataDrainTypeIgnore];
+      return dd;
+    }
+  else
+    {
+      [dd setType: GSDataDrainTypeIgnore];
+      return dd;
+    }
+}
+
 - (void) resume
 {
-  //TODO
+  NSURLSessionTask  *task;
+
+  task = [self task];
+
+  if (_internalState == GSNativeProtocolInternalStateTransferReady)
+    {
+      NSAssert(nil != [task originalRequest], @"Task has no original request.");
+
+      // Check if the cached response is good to use:
+      if (nil != [self cachedResponse] 
+        && [self canRespondFromCacheUsing: [self cachedResponse]])
+        {
+          [self setInternalState: GSNativeProtocolInternalStateFulfillingFromCache];
+          dispatch_async([task workQueue],
+            ^{
+              id<NSURLProtocolClient> client;
+
+              client = [self client];
+              [client URLProtocol: self 
+                cachedResponseIsValid: [self cachedResponse]];
+              [client URLProtocol: self 
+                didReceiveResponse: [[self cachedResponse] response]
+                cacheStoragePolicy: NSURLCacheStorageNotAllowed];
+              if ([[[self cachedResponse] data] length] > 0)
+                {
+                  if ([client respondsToSelector: @selector(URLProtocol:didLoad:)])
+                    {
+                      [client URLProtocol: self 
+                              didLoadData: [[self cachedResponse] data]];
+                    }
+                }
+              if ([client respondsToSelector: @selector(URLProtocolDidFinishLoading:)])
+                {
+                  [client URLProtocolDidFinishLoading: self];
+                }
+              [self setInternalState: GSNativeProtocolInternalStateTaskCompleted];
+            });
+        }
+      else
+        {
+          [self startNewTransferWithRequest: [task originalRequest]];
+        }
+    }
+
+  if (_internalState == GSNativeProtocolInternalStateTransferReady
+    && nil != _transferState)
+    {
+      [self setInternalState: GSNativeProtocolInternalStateTransferInProgress];
+    }
+}
+
+- (BOOL) canRespondFromCacheUsing: (NSCachedURLResponse*)response
+{
+  // Allows a native protocol to process a cached response. 
+  // If `YES` is returned, the protocol will replay the cached response 
+  // instead of starting a new transfer. The default implementation invalidates 
+  // the response in the cache and returns `NO`.
+  NSURLCache        *cache;
+  NSURLSessionTask  *task;
+
+  task = [self task];
+  cache = [[[task session] configuration] URLCache];
+  if (nil != cache && [task isKindOfClass: [NSURLSessionDataTask class]])
+    {
+      [cache removeCachedResponseForDataTask: (NSURLSessionDataTask*)task];
+    }
+  return NO;
 }
 
 - (void) suspend
 {
-  //TODO
+  if (_internalState == GSNativeProtocolInternalStateTransferInProgress)
+    {
+      [self setInternalState: GSNativeProtocolInternalStateTransferReady];
+    }
 }
 
 - (void) completeTaskWithError: (NSError*)error
 {
-  //TODO
+  [[self task] setError: error];
+  NSAssert(_internalState == GSNativeProtocolInternalStateTransferFailed, 
+   @"Trying to complete the task, but its transfer isn't complete / failed.");
+
+  // We don't want a timeout to be triggered after this. 
+  // The timeout timer needs to be cancelled.
+  [_easyHandle setTimeoutTimer: nil];
+
+  [self setInternalState: GSNativeProtocolInternalStateTaskCompleted];
 }
 
 - (GSEasyHandleAction) didReceiveData: (NSData*)data
@@ -453,7 +681,50 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 
 - (void) completeTask
 {
-  //TODO
+  NSURLSessionTask  *task;
+  GSDataDrain       *bodyDataDrain;
+  id<NSURLProtocolClient> client;
+
+  NSAssert(_internalState == GSNativeProtocolInternalStateTransferCompleted,
+    @"Trying to complete the task, but its transfer isn't complete.");
+  
+  task = [self task];
+  [task setResponse: [_transferState response]];
+  client = [self client];
+
+  // We don't want a timeout to be triggered after this. The timeout timer 
+  // needs to be cancelled.
+  [_easyHandle setTimeoutTimer: nil];
+
+  // because we deregister the task with the session on internalState being set 
+  // to taskCompleted we need to do the latter after the delegate/handler was 
+  // notified/invoked
+  bodyDataDrain = [_transferState bodyDataDrain];
+  if (GSDataDrainInMemory == [bodyDataDrain type])
+    {
+      NSData                  *data;
+      
+
+      if (nil != [bodyDataDrain data])
+        {
+          data = [NSData dataWithData: [bodyDataDrain data]];
+        }
+      else
+        {
+          data = [NSData data];
+        }
+
+      if ([client respondsToSelector: @selector(URLProtocol:didLoadData:)])
+        {
+          [client URLProtocol: self didLoadData: data];
+        }
+      [self setInternalState: GSNativeProtocolInternalStateTaskCompleted];
+    }
+  
+  if ([client respondsToSelector: @selector(URLProtocolDidFinishLoading:)])
+    {
+      [client URLProtocolDidFinishLoading: self];
+    }
 }
 
 - (void) redirectForRequest: (NSURLRequest*)request
@@ -463,18 +734,32 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 
 - (void) failWithError: (NSError*)error request: (NSURLRequest*)request
 {
-  //TODO
+  NSDictionary                 *info;
+  NSError                      *urlError;
+  id<NSURLProtocolClient>      client;
+  
+  info = [NSDictionary dictionaryWithObjectsAndKeys: 
+    error, NSUnderlyingErrorKey,
+    [request URL], NSURLErrorFailingURLErrorKey,
+    [[request URL] absoluteString], NSURLErrorFailingURLStringErrorKey,
+    [error localizedDescription], NSLocalizedDescriptionKey, nil];
+
+  urlError = [NSError errorWithDomain: NSURLErrorDomain 
+                                 code: [error code] 
+                             userInfo: info];
+  [self completeTaskWithError: urlError];
+
+  client = [self client];
+  if ([client respondsToSelector: @selector(URLProtocol:didFailWithError:)])
+    {
+      [client URLProtocol: self didFailWithError: urlError];
+    }
 }
 
 - (BOOL) seekInputStreamToPosition: (uint64_t)position
 {
-  //TODO
+  //FIXME implement seek for NSURLSessionUploadTask
   return NO;
-}
-
-- (void) needTimeoutTimerToValue: (NSInteger)value
-{
-  //TODO
 }
 
 - (void) updateProgressMeterWithTotalBytesSent: (int64_t)totalBytesSent 
@@ -482,7 +767,9 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
                             totalBytesReceived: (int64_t)totalBytesReceived 
                    totalBytesExpectedToReceive: (int64_t)totalBytesExpectedToReceive
 {
-  //TODO
+  //TODO: Update progress. Note that a single NSURLSessionTask might
+  // perform multiple transfers. The values in `progress` are only for
+  // the current transfer.
 }
 
 @end
