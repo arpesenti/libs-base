@@ -93,6 +93,8 @@ typedef NS_ENUM(NSUInteger, GSDataDrainType) {
 
 - (GSDataDrain*) bodyDataDrain;
 
+- (NSURL*) URL;
+
 @end
 
 #endif

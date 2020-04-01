@@ -955,6 +955,16 @@ static int nextSessionIdentifier()
   ASSIGN(_HTTPCookieStorage, storage);
 }
 
+- (BOOL) HTTPShouldSetCookies
+{
+  return _HTTPShouldSetCookies;
+}
+
+- (void) setHTTPShouldSetCookies: (BOOL)flag
+{
+  _HTTPShouldSetCookies = flag;
+}
+
 - (NSDictionary*) HTTPAdditionalHeaders
 {
   return _HTTPAdditionalHeaders;
@@ -963,6 +973,35 @@ static int nextSessionIdentifier()
 - (void) setHTTPAdditionalHeaders: (NSDictionary*)headers
 {
   ASSIGN(_HTTPAdditionalHeaders, headers);
+}
+
+- (NSURLRequest*) configureRequest: (NSURLRequest*)request 
+{
+  return [self setCookiesOnRequest: request];
+}
+
+- (NSURLRequest*) setCookiesOnRequest: (NSURLRequest*)request 
+{
+  NSMutableURLRequest *r = AUTORELEASE([request mutableCopy]);
+  
+  if (_HTTPShouldSetCookies) 
+    {
+      if (nil != _HTTPCookieStorage && nil != [request URL]) 
+        {
+          NSArray *cookies = [_HTTPCookieStorage cookiesForURL: [request URL]];
+          if (nil != cookies && [cookies count] > 0) 
+            {
+              NSDictionary *cookiesHeaderFields = [NSHTTPCookie requestHeaderFieldsWithCookies: cookies];
+              NSString *cookieValue = [cookiesHeaderFields objectForKey: @"Cookie"];
+              if (nil != cookieValue && [cookieValue length] > 0) 
+                {
+                  [r setValue: cookieValue forHTTPHeaderField: @"Cookie"];
+                }
+            }
+        }
+    }
+  
+  return AUTORELEASE([r copy]);
 }
 
 - (id) copyWithZone: (NSZone*)zone
@@ -977,6 +1016,7 @@ static int nextSessionIdentifier()
       copy->_HTTPShouldUsePipelining = _HTTPShouldUsePipelining;
       copy->_HTTPCookieAcceptPolicy = _HTTPCookieAcceptPolicy;
       copy->_HTTPCookieStorage = [_HTTPCookieStorage copy];
+      copy->_HTTPShouldSetCookies = _HTTPShouldSetCookies;
       copy->_HTTPAdditionalHeaders = [_HTTPAdditionalHeaders copyWithZone: zone];
     }
 

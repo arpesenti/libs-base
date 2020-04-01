@@ -52,6 +52,14 @@ typedef NS_ENUM(NSUInteger, GSNativeProtocolInternalState) {
 
 - (void) setInternalState: (GSNativeProtocolInternalState)newState;
 
+- (void) failWithError: (NSError*)error request: (NSURLRequest*)request;
+
+- (void) completeTaskWithError: (NSError*)error;
+
+- (void) completeTask;
+
+- (void) startNewTransferWithRequest: (NSURLRequest*)request;
+
 @end
 
 #endif
