@@ -1,9 +1,15 @@
 #import "GSHTTPURLProtocol.h"
 #import "GSTransferState.h"
+#import "GSURLSessionTaskBody.h"
+#import "GSTimeoutSource.h"
 
 @interface NSURLSessionTask (Internal)
 
 - (void) setCountOfBytesExpectedToReceive: (int64_t)count;
+
+- (void) setCountOfBytesExpectedToSend: (int64_t)count;
+
+- (dispatch_queue_t) workQueue;
 
 @end
 
@@ -12,6 +18,21 @@
 - (void) setCountOfBytesExpectedToReceive: (int64_t)count
 {
   _countOfBytesExpectedToReceive = count;
+}
+
+- (void) setCountOfBytesExpectedToSend: (int64_t)count
+{
+  _countOfBytesExpectedToSend = count;
+}
+
+- (GSURLSessionTaskBody*) knownBody
+{
+  return _knownBody;
+}
+
+- (dispatch_queue_t) workQueue
+{
+  return _workQueue;
 }
 
 @end
@@ -208,7 +229,7 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
                                               noStore: &noStore];
       if (noCache || noStore) 
         {
-          return false;
+          return NO;
         }
 
       if (maxAge > 0) 
@@ -413,6 +434,540 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
     }
   
   return YES;
+}
+
+/// Set options on the easy handle to match the given request.
+/// This performs a series of `curl_easy_setopt()` calls.
+- (void) configureEasyHandleForRequest: (NSURLRequest*)request 
+                                  body: (GSURLSessionTaskBody*)body
+{
+  NSURLSessionTask  *task = [self task];
+
+  if ([[request HTTPMethod] isEqualToString:@"GET"]) 
+    {
+      if ([body type] != GSURLSessionTaskBodyTypeNone) 
+        {
+          NSError       *error;
+          NSDictionary  *info;
+
+          info = [NSDictionary dictionaryWithObjectsAndKeys:
+            @"resource exceeds maximum size", NSLocalizedDescriptionKey,
+            [[request URL] description], NSURLErrorFailingURLStringErrorKey,
+            nil];
+          error = [NSError errorWithDomain: NSURLErrorDomain
+                                      code: NSURLErrorDataLengthExceedsMaximum
+                                  userInfo: info];
+          [self setInternalState: GSNativeProtocolInternalStateTransferFailed];
+          [self transferCompletedWithError: error];
+          return;
+        }
+    }
+
+  BOOL debugLibcurl = [[[NSProcessInfo processInfo] environment] 
+    objectForKey: @"URLSessionDebugLibcurl"] ? YES : NO;
+  [_easyHandle setVerboseMode: debugLibcurl];
+
+  BOOL debugOutput = [[[NSProcessInfo processInfo] environment] 
+    objectForKey: @"URLSessionDebug"] ? YES : NO;
+  [_easyHandle setDebugOutput: debugOutput task: task];
+  
+  [_easyHandle setPassHeadersToDataStream: NO];
+  [_easyHandle setProgressMeterOff: YES];
+  [_easyHandle setSkipAllSignalHandling: YES];
+
+  // Error Options:
+  [_easyHandle setErrorBuffer: NULL];
+  [_easyHandle setFailOnHTTPErrorCode: NO];
+
+  NSAssert(nil != [request URL], @"No URL in request.");
+  [_easyHandle setURL: [request URL]];
+
+  [_easyHandle setSessionConfig:[[task session] configuration]];
+  [_easyHandle setAllowedProtocolsToHTTPAndHTTPS];
+  [_easyHandle setPreferredReceiveBufferSize: NSIntegerMax];
+
+  NSError  *e = nil;
+  NSNumber *bodySize = [body getBodyLengthWithError: &e];
+  if (nil != e) 
+    {
+      NSInteger errorCode;
+      NSError   *error;
+
+      [self setInternalState: GSNativeProtocolInternalStateTransferFailed];
+      errorCode = [self errorCodeFromFileSystemError: e];
+      error = [NSError errorWithDomain: NSURLErrorDomain
+                                  code: errorCode
+                              userInfo: @{NSLocalizedDescriptionKey : @"File system error"}];
+      [self failWithError: error request: request];
+      return;
+    }
+
+  if ([body type] == GSURLSessionTaskBodyTypeNone) 
+    {
+      if ([[request HTTPMethod] isEqualToString: @"GET"]) 
+        {
+          [_easyHandle setUpload: NO];
+          [_easyHandle setRequestBodyLength: 0];
+        } 
+      else 
+        {
+          [_easyHandle setUpload: YES];
+          [_easyHandle setRequestBodyLength: 0];
+        }
+    } 
+  else if (bodySize != nil) 
+    {
+      [task setCountOfBytesExpectedToSend: [bodySize longLongValue]];
+      [_easyHandle setUpload: YES];
+      [_easyHandle setRequestBodyLength: [bodySize unsignedLongLongValue]];
+    } 
+  else if (bodySize == nil) 
+    {
+      [_easyHandle setUpload: YES];
+      [_easyHandle setRequestBodyLength:-1];
+    }
+
+  [_easyHandle setFollowLocation: NO];
+
+  // The httpAdditionalHeaders from session configuration has to be added to 
+  // the request. The request.allHTTPHeaders can override the 
+  // httpAdditionalHeaders elements. Add the httpAdditionalHeaders from session 
+  // configuration first and then append/update the request.allHTTPHeaders 
+  // so that request.allHTTPHeaders can override httpAdditionalHeaders.
+  NSMutableDictionary *hh = [NSMutableDictionary dictionary];
+  NSDictionary        *HTTPAdditionalHeaders;
+  NSDictionary        *HTTPHeaders;
+  
+  hh = [NSMutableDictionary dictionary];
+  HTTPAdditionalHeaders = [[[task session] configuration] HTTPAdditionalHeaders];
+  if (nil == HTTPAdditionalHeaders)
+    {
+      HTTPAdditionalHeaders = [NSDictionary dictionary];
+    }
+  HTTPHeaders = [request allHTTPHeaderFields];
+  if (nil == HTTPHeaders)
+    {
+      HTTPHeaders = [NSDictionary dictionary];
+    }
+
+  [hh addEntriesFromDictionary: 
+    [self transformLowercaseKeyForHTTPHeaders: HTTPAdditionalHeaders]];
+  [hh addEntriesFromDictionary: 
+    [self transformLowercaseKeyForHTTPHeaders: HTTPHeaders]];
+
+  NSArray *curlHeaders = [self curlHeadersForHTTPHeaders: hh];
+  if ([[request HTTPMethod] isEqualToString:@"POST"] 
+    && [[request HTTPBody] length] > 0
+    && [request valueForHTTPHeaderField: @"Content-Type"] == nil) 
+    {
+      NSMutableArray *temp = [curlHeaders mutableCopy];
+      [temp addObject: @"Content-Type:application/x-www-form-urlencoded"];
+      curlHeaders = temp;
+    }
+  [_easyHandle setCustomHeaders: curlHeaders];
+  RELEASE(curlHeaders);
+
+  NSInteger        timeoutInterval = [request timeoutInterval] * 1000;
+  GSTimeoutSource  *timeoutTimer;
+
+  timeoutTimer = [[GSTimeoutSource alloc] initWithQueue: [task workQueue] 
+                                           milliseconds: timeoutInterval 
+                                                handler: 
+    ^{
+      NSError                 *urlError;
+      id<NSURLProtocolClient> client;
+      
+      [self setInternalState: GSNativeProtocolInternalStateTransferFailed];
+      urlError = [NSError errorWithDomain: NSURLErrorDomain 
+                                     code: NSURLErrorTimedOut 
+                                 userInfo: nil];
+      [self completeTaskWithError: urlError];
+      if (nil != (client = [self client]) 
+        && [client respondsToSelector: @selector(URLProtocol:didFailWithError:)])
+        {
+          [client URLProtocol: self didFailWithError: urlError];
+        }
+    }];
+  [_easyHandle setTimeoutTimer: timeoutTimer];
+  RELEASE(timeoutTimer);
+
+  [_easyHandle setAutomaticBodyDecompression: YES];
+  [_easyHandle setRequestMethod: 
+    [request HTTPMethod] ? [request HTTPMethod] : @"GET"];
+
+  // always set the status as it may change if a HEAD is converted to a GET
+  [_easyHandle setNoBody: [[request HTTPMethod] isEqualToString: @"HEAD"]];
+  [_easyHandle setProxy];
+}
+
+- (GSCompletionAction*) completeActionForCompletedRequest: (NSURLRequest*)request
+                                                 response: (NSURLResponse*)response
+{
+  GSCompletionAction  *action;
+  NSHTTPURLResponse   *httpResponse;
+  NSURLRequest        *redirectRequest;
+
+  NSAssert([response isKindOfClass: [NSHTTPURLResponse class]], 
+    @"Response was not NSHTTPURLResponse");
+  httpResponse = (NSHTTPURLResponse*)response;
+
+  redirectRequest = [self redirectedReqeustForResponse: httpResponse 
+                                           fromRequest: request];
+  
+  action = AUTORELEASE([[GSCompletionAction alloc] init]);
+
+  if (nil != redirectRequest)
+    {
+      [action setType: GSCompletionActionTypeRedirectWithRequest];
+      [action setRedirectRequest: redirectRequest];
+    }
+  else
+    {
+      [action setType: GSCompletionActionTypeCompleteTask];
+    }
+
+  return action;
+}
+
+- (NSURLRequest*) redirectedReqeustForResponse: (NSHTTPURLResponse*)response 
+                                   fromRequest: (NSURLRequest*)fromRequest 
+{
+  NSString  *method = nil;
+  NSURL     *targetURL;
+  NSString  *location;
+
+  if (nil == [response allHeaderFields]) 
+    {
+      return nil;
+    }
+
+  location = [[response allHeaderFields] objectForKey: @"Location"];
+  targetURL = [NSURL URLWithString: location];
+  if (nil == location && nil == targetURL)
+    {
+      return nil;
+    }
+
+  switch ([response statusCode]) 
+    {
+      case 301:
+      case 302:
+        method = [[fromRequest HTTPMethod] isEqualToString:@"POST"] ? 
+          @"GET" : [fromRequest HTTPMethod];
+        break;
+      case 303:
+        method = @"GET";
+        break;
+      case 305:
+      case 306:
+      case 307:
+      case 308:
+        method = nil != [fromRequest HTTPMethod] ?
+          [fromRequest HTTPMethod] : @"GET";
+        break;
+      default:
+        return nil;
+   }
+
+  NSMutableURLRequest *request = AUTORELEASE([fromRequest mutableCopy]);
+  [request setHTTPMethod: method];
+
+  if (nil != [targetURL scheme] && nil != [targetURL host]) 
+    {
+      [request setURL: targetURL];
+      return request;
+    }
+
+  NSString *scheme = [[request URL] scheme];
+  NSString *host = [[request URL] host];
+  NSNumber *port = [[request URL] port];
+
+  NSURLComponents *components = [[NSURLComponents alloc] init];
+  [components setScheme: scheme];
+  [components setHost: host];
+  
+  // Use the original port if the new URL does not contain a host
+  // ie Location: /foo => <original host>:<original port>/Foo
+  // but Location: newhost/foo  will ignore the original port
+  if ([targetURL host] == nil) 
+    {
+      [components setPort: port];
+    }
+
+  // The path must either begin with "/" or be an empty string.
+  if (![[targetURL relativePath] hasPrefix:@"/"]) 
+    {
+      [components setPath: 
+        [NSString stringWithFormat:@"/%@", [targetURL relativePath]]];
+    } 
+  else 
+    {
+      [components setPath: [targetURL relativePath]];
+    }
+
+  NSString *urlString = [components string];
+  RELEASE(components);
+  if (nil == urlString) 
+    {
+      return nil;
+    }
+
+  [request setURL: [NSURL URLWithString:urlString]];
+  double timeSpent = [_easyHandle getTimeoutIntervalSpent];
+  [request setTimeoutInterval: [fromRequest timeoutInterval] - timeSpent];
+  return request;
+}
+
+- (void) redirectForRequest: (NSURLRequest*)request 
+{
+  NSURLSessionTask         *task;
+  NSURLSession             *session;
+  id<NSURLSessionDelegate> delegate;
+
+  NSAssert(_internalState == GSNativeProtocolInternalStateTransferCompleted,
+    @"Trying to redirect, but the transfer is not complete.");
+
+  task = [self task];
+  session = [task session];
+  delegate = [session delegate];
+
+  if (nil != delegate
+    && [delegate respondsToSelector:@selector(selectr)])
+    {
+      // At this point we need to change the internal state to note
+      // that we're waiting for the delegate to call the completion
+      // handler. Then we'll call the delegate callback
+      // (willPerformHTTPRedirection). The task will then switch out of
+      // its internal state once the delegate calls the completion
+      // handler.
+      [self setInternalState: GSNativeProtocolInternalStateWaitingForRedirectCompletionHandler];
+      [[session delegateQueue] addOperationWithBlock:
+        ^{
+          id<NSURLSessionTaskDelegate> taskDelegate = 
+            (id<NSURLSessionTaskDelegate>)delegate;
+          [taskDelegate URLSession: session 
+                              task: task 
+        willPerformHTTPRedirection: (NSHTTPURLResponse*)[_transferState response] 
+                        newRequest: request 
+                 completionHandler: ^(NSURLRequest *_Nullable request) {
+                                      dispatch_async([task workQueue], ^{
+                                          NSAssert(_internalState == GSNativeProtocolInternalStateWaitingForRedirectCompletionHandler, 
+                                            @"Received callback for HTTP redirection, but we're not waiting "
+                                            @"for it. Was it called multiple times?");
+                                          
+                                          // If the request is `nil`, we're supposed to treat the current response
+                                          // as the final response, i.e. not do any redirection.
+                                          // Otherwise, we'll start a new transfer with the passed in request.
+                                          if (nil != request) 
+                                            {
+                                              [self startNewTransferWithRequest: request];
+                                            } 
+                                          else 
+                                            {
+                                              [self setInternalState: GSNativeProtocolInternalStateTransferCompleted];
+                                              [self completeTask];
+                                            }
+                                      });
+                                    }];
+        }];
+    }
+  else
+    {
+      NSURLRequest *configuredRequest;
+      
+      configuredRequest = [[session configuration] configureRequest: request];
+      [self startNewTransferWithRequest: configuredRequest];
+    } 
+}
+
+- (NSURLResponse*) validateHeaderCompleteTransferState: (GSTransferState*)ts 
+{
+  if (![_transferState isHeaderComplete])
+    {
+      /* we received body data before CURL tells us that the headers are complete, 
+        that happens for HTTP/0.9 simple responses, see
+        - https://www.w3.org/Protocols/HTTP/1.0/spec.html#Message-Types
+        - https://github.com/curl/curl/issues/467
+       */
+      return AUTORELEASE([[NSHTTPURLResponse alloc] 
+        initWithURL: [ts URL]
+        statusCode: 200 
+        HTTPVersion: @"HTTP/0.9" 
+        headerFields: [NSDictionary dictionary]]); 
+    }
+  
+  return nil;
+}
+
+- (NSDictionary*) transformLowercaseKeyForHTTPHeaders: (NSDictionary*)HTTPHeaders 
+{
+  NSMutableDictionary *result;
+  NSEnumerator        *e;
+  NSString            *k;
+
+  if (nil == HTTPHeaders)
+    {
+      return nil;
+    }
+
+  result = [NSMutableDictionary dictionary];
+  e = [HTTPHeaders keyEnumerator];
+  while (nil != (k = [e nextObject]))
+    {
+      [result setObject: [HTTPHeaders objectForKey: k] 
+                 forKey: [k lowercaseString]];
+    }
+  
+  return AUTORELEASE([result copy]);
+}
+
+// These are a list of headers that should be passed to libcurl.
+//
+// Headers will be returned as `Accept: text/html` strings for
+// setting fields, `Accept:` for disabling the libcurl default header, or
+// `Accept;` for a header with no content. This is the format that libcurl
+// expects.
+//
+// - SeeAlso: https://curl.haxx.se/libcurl/c/CURLOPT_HTTPHEADER.html
+- (NSArray*) curlHeadersForHTTPHeaders: (NSDictionary*)HTTPHeaders 
+{
+  NSMutableArray *result = [NSMutableArray array];
+  NSMutableSet   *names = [NSMutableSet set];
+  NSEnumerator   *e;
+  NSString       *k;
+  NSDictionary   *curlHeadersToSet;
+  NSArray        *curlHeadersToRemove;
+
+  if (nil == HTTPHeaders)
+    {
+      return nil;
+    }
+
+  e = [HTTPHeaders keyEnumerator];
+  while (nil != (k = [e nextObject]))
+    {
+      NSString *name = [k lowercaseString];
+      NSString *value = [HTTPHeaders objectForKey: k];
+      
+      if ([names containsObject: name])
+        {
+          break;
+        }
+
+      [names addObject: name];
+      
+      if ([value length] == 0)
+        {
+          [result addObject: [NSString stringWithFormat: @"%@;", k]];
+        } 
+      else 
+        {
+          [result addObject: [NSString stringWithFormat: @"%@: %@", k, value]];
+        }
+    }
+
+  curlHeadersToSet = [self curlHeadersToSet];
+  e = [curlHeadersToSet keyEnumerator];
+  while (nil != (k = [e nextObject]))
+    {
+      NSString *name = [k lowercaseString];
+      NSString *value = [curlHeadersToSet objectForKey: k];
+      
+      if ([names containsObject: name])
+        {
+          break;
+        }
+
+      [names addObject: name];
+      
+      if ([value length] == 0)
+        {
+          [result addObject: [NSString stringWithFormat: @"%@;", k]];
+        } 
+      else 
+        {
+          [result addObject: [NSString stringWithFormat: @"%@: %@", k, value]];
+        }
+    }
+
+  curlHeadersToRemove = [self curlHeadersToRemove];
+  e = [curlHeadersToRemove objectEnumerator];
+  while (nil != (k = [e nextObject]))
+    {
+      NSString *name = [k lowercaseString];
+
+      if ([names containsObject: name])
+        {
+          break;
+        }
+
+      [names addObject:name];
+
+      [result addObject: [NSString stringWithFormat: @"%@:", k]];
+    }
+
+  return AUTORELEASE([result copy]);
+}
+
+// Any header values that should be passed to libcurl
+//
+// These will only be set if not already part of the request.
+// - SeeAlso: https://curl.haxx.se/libcurl/c/CURLOPT_HTTPHEADER.html
+- (NSDictionary*) curlHeadersToSet 
+{
+  return [NSDictionary dictionaryWithObjectsAndKeys:
+    @"keep-alive", @"Connection",
+    [self userAgentString], @"User-Agent",
+    nil];  
+}
+
+// Any header values that should be removed from the ones set by libcurl
+// - SeeAlso: https://curl.haxx.se/libcurl/c/CURLOPT_HTTPHEADER.html
+- (NSArray*) curlHeadersToRemove 
+{
+  if ([[self task] knownBody] == nil) 
+    {
+      return [NSArray array];
+    }
+  else if ([[[self task] knownBody] type] == GSURLSessionTaskBodyTypeNone) 
+    {
+      return [NSArray array];
+    }
+  
+  return [NSArray arrayWithObject: @"Expect"];
+}
+
+- (NSString*) userAgentString
+{
+  NSProcessInfo          *processInfo = [NSProcessInfo processInfo];
+  NSString               *name = [processInfo processName];
+  curl_version_info_data *curlInfo = curl_version_info(CURLVERSION_NOW);
+
+  return [NSString stringWithFormat: @"%@ (unknown version) curl/%d.%d.%d",
+    name, 
+    curlInfo->version_num >> 16 & 0xff, 
+    curlInfo->version_num >> 8 & 0xff, 
+    curlInfo->version_num & 0xff];
+}
+
+- (NSInteger) errorCodeFromFileSystemError: (NSError*)error 
+{
+  if ([error domain] == NSCocoaErrorDomain) 
+    {
+      switch (error.code) 
+        {
+          case NSFileReadNoSuchFileError:
+            return NSURLErrorFileDoesNotExist;
+          case NSFileReadNoPermissionError:
+            return NSURLErrorNoPermissionsToReadFile;
+          default:
+            return NSURLErrorUnknown;
+        }
+    } 
+  else 
+    {
+      return NSURLErrorUnknown;
+    }
 }
 
 - (void) didReceiveResponse

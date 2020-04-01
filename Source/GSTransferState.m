@@ -469,4 +469,9 @@
   return _bodyDataDrain;
 }
 
+- (NSURL*) URL
+{
+  return _url;
+}
+
 @end

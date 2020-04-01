@@ -21,6 +21,7 @@
 @class NSURLCache;
 @class GSMultiHandle;
 @class GSURLSessionTaskBody;
+@class NSHTTPURLResponse;
 
 @interface NSURLSession : NSObject
 {
@@ -211,6 +212,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
   BOOL                     _HTTPShouldUsePipelining;
   NSHTTPCookieAcceptPolicy _HTTPCookieAcceptPolicy;
   NSHTTPCookieStorage      *_HTTPCookieStorage;
+  BOOL                     _HTTPShouldSetCookies;
   NSDictionary             *_HTTPAdditionalHeaders;
 }
 
@@ -240,9 +242,15 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
 
 - (void) setHTTPCookieStorage: (NSHTTPCookieStorage*)storage;
 
+- (BOOL) HTTPShouldSetCookies;
+
+- (void) setHTTPShouldSetCookies: (BOOL)flag;
+
 - (NSDictionary*) HTTPAdditionalHeaders;
 
 - (void) setHTTPAdditionalHeaders: (NSDictionary*)headers;
+
+- (NSURLRequest*) configureRequest: (NSURLRequest*)request;
 
 @end
 
@@ -274,6 +282,20 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
           didSendBodyData: (int64_t)bytesSent 
            totalBytesSent: (int64_t)totalBytesSent 
  totalBytesExpectedToSend: (int64_t)totalBytesExpectedToSend;
+
+/* An HTTP request is attempting to perform a redirection to a different
+ * URL. You must invoke the completion routine to allow the
+ * redirection, allow the redirection with a modified request, or
+ * pass nil to the completionHandler to cause the body of the redirection 
+ * response to be delivered as the payload of this request. The default
+ * is to follow redirections. 
+ *
+ */
+- (void)          URLSession: (NSURLSession*)session 
+                        task: (NSURLSessionTask*)task
+  willPerformHTTPRedirection: (NSHTTPURLResponse*)response
+                  newRequest: (NSURLRequest*)request
+           completionHandler: (void (^)(NSURLRequest*))completionHandler;
 
 @end
 
