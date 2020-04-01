@@ -3,19 +3,7 @@
 #import "GSURLSessionTaskBody.h"
 
 
-typedef NS_ENUM(NSUInteger, GSNativeProtocolInternalState) {
-    GSNativeProtocolInternalStateInitial,
-    GSNativeProtocolInternalStateFulfillingFromCache,
-    GSNativeProtocolInternalStateTransferReady,
-    GSNativeProtocolInternalStateTransferInProgress,
-    GSNativeProtocolInternalStateTransferCompleted,
-    GSNativeProtocolInternalStateTransferFailed,
-    GSNativeProtocolInternalStateWaitingForRedirectCompletionHandler,
-    GSNativeProtocolInternalStateWaitingForResponseCompletionHandler,
-    GSNativeProtocolInternalStateTaskCompleted,
-};
-
-static BOOL isEasyHandlePaused(GSNativeProtocolInternalState state)
+static BOOL isEasyHandlePaused(GSNativeProtocolInternalState state) 
 {
   switch (state)
     {
