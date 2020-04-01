@@ -885,6 +885,8 @@ static int nextSessionIdentifier()
 {
   DESTROY(_URLCache);
   DESTROY(_protocolClasses);
+  DESTROY(_HTTPCookieStorage);
+  DESTROY(_HTTPAdditionalHeaders);
   [super dealloc];
 }
 
@@ -953,6 +955,16 @@ static int nextSessionIdentifier()
   ASSIGN(_HTTPCookieStorage, storage);
 }
 
+- (NSDictionary*) HTTPAdditionalHeaders
+{
+  return _HTTPAdditionalHeaders;
+}
+
+- (void) setHTTPAdditionalHeaders: (NSDictionary*)headers
+{
+  ASSIGN(_HTTPAdditionalHeaders, headers);
+}
+
 - (id) copyWithZone: (NSZone*)zone
 {
   NSURLSessionConfiguration *copy = [[[self class] alloc] init];
@@ -965,6 +977,7 @@ static int nextSessionIdentifier()
       copy->_HTTPShouldUsePipelining = _HTTPShouldUsePipelining;
       copy->_HTTPCookieAcceptPolicy = _HTTPCookieAcceptPolicy;
       copy->_HTTPCookieStorage = [_HTTPCookieStorage copy];
+      copy->_HTTPAdditionalHeaders = [_HTTPAdditionalHeaders copyWithZone: zone];
     }
 
   return copy;
