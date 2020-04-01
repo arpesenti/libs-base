@@ -211,6 +211,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
   BOOL                     _HTTPShouldUsePipelining;
   NSHTTPCookieAcceptPolicy _HTTPCookieAcceptPolicy;
   NSHTTPCookieStorage      *_HTTPCookieStorage;
+  NSDictionary             *_HTTPAdditionalHeaders;
 }
 
 - (NSURLCache*) URLCache;
@@ -238,6 +239,10 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
 - (NSHTTPCookieStorage*) HTTPCookieStorage;
 
 - (void) setHTTPCookieStorage: (NSHTTPCookieStorage*)storage;
+
+- (NSDictionary*) HTTPAdditionalHeaders;
+
+- (void) setHTTPAdditionalHeaders: (NSDictionary*)headers;
 
 @end
 
