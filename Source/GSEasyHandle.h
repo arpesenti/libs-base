@@ -54,6 +54,8 @@ typedef NS_ENUM(NSUInteger, GSEasyHandleWriteBufferResult) {
 
 - (char*) errorBuffer;
 
+- (void) setErrorBuffer: (char*)buffer;
+
 - (GSTimeoutSource*) timeoutTimer;
 
 - (void) setTimeoutTimer: (GSTimeoutSource*)timer;

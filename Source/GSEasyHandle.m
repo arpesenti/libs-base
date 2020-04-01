@@ -321,25 +321,25 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
 
 - (void) setErrorBuffer: (char*)buffer 
 {
-    char *b = buffer ? buffer : _errorBuffer;
-    handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_ERRORBUFFER, b));
+  char *b = buffer ? buffer : _errorBuffer;
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_ERRORBUFFER, b));
 }
 
 - (void) setFailOnHTTPErrorCode: (BOOL)flag 
 {
-    handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_FAILONERROR, flag ? 1 : 0));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_FAILONERROR, flag ? 1 : 0));
 }
 
 - (void) setURL: (NSURL *)URL 
 {
-    ASSIGN(_URL, URL);
-    if (nil != [URL absoluteString]) 
-      {
-        handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_URL, [[URL absoluteString] UTF8String]));
-      }
+  ASSIGN(_URL, URL);
+  if (nil != [URL absoluteString]) 
+    {
+      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_URL, [[URL absoluteString] UTF8String]));
+    }
 }
 
--(void) setConnectToHost: (NSString*)host port: (NSInteger)port 
+- (void) setConnectToHost: (NSString*)host port: (NSInteger)port 
 {
   if (nil != host) 
     {
