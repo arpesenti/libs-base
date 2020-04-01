@@ -5,6 +5,8 @@
 
 #import "GSEasyHandle.h"
 
+@class GSTransferState;
+
 typedef NS_ENUM(NSUInteger, GSCompletionActionType) {
     GSCompletionActionTypeCompleteTask,
     GSCompletionActionTypeFailWithError,
@@ -29,7 +31,26 @@ typedef NS_ENUM(NSUInteger, GSCompletionActionType) {
 
 @end
 
+typedef NS_ENUM(NSUInteger, GSNativeProtocolInternalState) {
+    GSNativeProtocolInternalStateInitial,
+    GSNativeProtocolInternalStateFulfillingFromCache,
+    GSNativeProtocolInternalStateTransferReady,
+    GSNativeProtocolInternalStateTransferInProgress,
+    GSNativeProtocolInternalStateTransferCompleted,
+    GSNativeProtocolInternalStateTransferFailed,
+    GSNativeProtocolInternalStateWaitingForRedirectCompletionHandler,
+    GSNativeProtocolInternalStateWaitingForResponseCompletionHandler,
+    GSNativeProtocolInternalStateTaskCompleted,
+};
+
 @interface GSNativeProtocol : NSURLProtocol <GSEasyHandleDelegate>
+{
+  GSEasyHandle                   *_easyHandle;
+  GSNativeProtocolInternalState  _internalState;
+  GSTransferState                *_transferState;
+}
+
+- (void) setInternalState: (GSNativeProtocolInternalState)newState;
 
 @end
 
