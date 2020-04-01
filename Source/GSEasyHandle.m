@@ -436,7 +436,7 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
 
 - (void) setProxy 
 {    
-  //TODO
+  //TODO setup proxy
 }
 
 - (void) updatePauseState: (GSEasyHandlePauseState)pauseState 

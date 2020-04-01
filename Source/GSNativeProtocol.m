@@ -758,7 +758,7 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 
 - (BOOL) seekInputStreamToPosition: (uint64_t)position
 {
-  //FIXME implement seek for NSURLSessionUploadTask
+  //TODO implement seek for NSURLSessionUploadTask
   return NO;
 }
 
@@ -767,7 +767,7 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
                             totalBytesReceived: (int64_t)totalBytesReceived 
                    totalBytesExpectedToReceive: (int64_t)totalBytesExpectedToReceive
 {
-  //TODO: Update progress. Note that a single NSURLSessionTask might
+  // TODO: Update progress. Note that a single NSURLSessionTask might
   // perform multiple transfers. The values in `progress` are only for
   // the current transfer.
 }
