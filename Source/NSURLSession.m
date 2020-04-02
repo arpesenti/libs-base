@@ -911,6 +911,12 @@ static int nextSessionIdentifier()
     {
       _protocolClasses = [NSArray arrayWithObjects: 
         [GSHTTPURLProtocol class], nil];
+      _HTTPMaximumConnectionsPerHost = 1;
+      _HTTPShouldUsePipelining = YES;
+      _HTTPCookieAcceptPolicy = NSHTTPCookieAcceptPolicyNever;
+      _HTTPCookieStorage = nil;
+      _HTTPShouldSetCookies = NO;
+      _HTTPAdditionalHeaders = nil;
     }
 
   return self;
