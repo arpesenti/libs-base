@@ -6,7 +6,6 @@
 #import "GSNativeProtocol.h"
 
 @interface GSHTTPURLProtocol : GSNativeProtocol
-//TODO
 @end
 
 #endif

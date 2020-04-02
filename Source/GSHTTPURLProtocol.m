@@ -611,8 +611,8 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
     @"Response was not NSHTTPURLResponse");
   httpResponse = (NSHTTPURLResponse*)response;
 
-  redirectRequest = [self redirectedReqeustForResponse: httpResponse 
-                                           fromRequest: request];
+  redirectRequest = [self redirectRequestForResponse: httpResponse 
+                                         fromRequest: request];
   
   action = AUTORELEASE([[GSCompletionAction alloc] init]);
 
@@ -629,8 +629,13 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
   return action;
 }
 
-- (NSURLRequest*) redirectedReqeustForResponse: (NSHTTPURLResponse*)response 
-                                   fromRequest: (NSURLRequest*)fromRequest 
+// If the response is a redirect, return the new request
+//
+// RFC 7231 section 6.4 defines redirection behavior for HTTP/1.1
+//
+// - SeeAlso: <https://tools.ietf.org/html/rfc7231#section-6.4>
+- (NSURLRequest*) redirectRequestForResponse: (NSHTTPURLResponse*)response 
+                                 fromRequest: (NSURLRequest*)fromRequest 
 {
   NSString  *method = nil;
   NSURL     *targetURL;
@@ -970,9 +975,50 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
     }
 }
 
+// Whenever we receive a response (i.e. a complete header) from libcurl,
+// this method gets called.
 - (void) didReceiveResponse
 {
-  //TODO
+  NSURLSessionDataTask  *task;
+  NSHTTPURLResponse     *response;
+
+  if (![[self task] isKindOfClass: [NSURLSessionDataTask class]])
+    {
+      return;
+    }
+  
+  task = (NSURLSessionDataTask*)[self task];
+
+  NSAssert(_internalState == GSNativeProtocolInternalStateTransferInProgress,
+    @"Transfer not in progress.");
+
+  NSAssert([[_transferState response] isKindOfClass: [NSHTTPURLResponse class]],
+    @"Header complete, but not URL response.");
+
+  response = (NSHTTPURLResponse*)[_transferState response];
+
+  if (nil != [[task session] delegate])
+    {
+      switch([response statusCode])
+        {
+          case 301:
+          case 302:
+          case 303:
+          case 307:
+            break;
+          default:
+            {
+              id<NSURLProtocolClient> client = [self client];
+
+              if (nil != client)
+                {
+                  [client URLProtocol: self 
+                   didReceiveResponse: response 
+                   cacheStoragePolicy: NSURLCacheStorageNotAllowed];
+                }
+            }
+        }
+    }
 }
 
 @end
