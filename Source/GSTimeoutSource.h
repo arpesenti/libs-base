@@ -3,6 +3,11 @@
 
 #import <Foundation/Foundation.h>
 
+/*
+ * A helper class that wraps a libdispatch timer.
+ *
+ * Used to implement the timeout of `GSMultiHandle` and `GSEasyHandle`
+ */
 @interface GSTimeoutSource : NSObject
 {
   dispatch_source_t  _rawSource;
