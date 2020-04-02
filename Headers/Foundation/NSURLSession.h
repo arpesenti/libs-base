@@ -23,6 +23,32 @@
 @class GSURLSessionTaskBody;
 @class NSHTTPURLResponse;
 
+
+/*
+ * NSURLSession is a replacement API for NSURLConnection.  It provides
+ * options that affect the policy of, and various aspects of the
+ * mechanism by which NSURLRequest objects are retrieved from the
+ * network.
+ *
+ * An NSURLSession may be bound to a delegate object.  The delegate is
+ * invoked for certain events during the lifetime of a session.
+ * 
+ * NSURLSession instances are threadsafe.
+ *
+ * An NSURLSession creates NSURLSessionTask objects which represent the
+ * action of a resource being loaded.
+ * 
+ * NSURLSessionTask objects are always created in a suspended state and
+ * must be sent the -resume message before they will execute.
+ *
+ * Subclasses of NSURLSessionTask are used to syntactically
+ * differentiate between data and file downloads.
+ * 
+ * An NSURLSessionDataTask receives the resource as a series of calls to
+ * the URLSession:dataTask:didReceiveData: delegate method.  This is type of
+ * task most commonly associated with retrieving objects for immediate parsing
+ * by the consumer.
+ */
 @interface NSURLSession : NSObject
 {
   NSOperationQueue           *_delegateQueue;

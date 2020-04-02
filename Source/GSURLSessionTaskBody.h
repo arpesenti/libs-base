@@ -7,7 +7,9 @@
 typedef NS_ENUM(NSUInteger, GSURLSessionTaskBodyType) {
     GSURLSessionTaskBodyTypeNone,
     GSURLSessionTaskBodyTypeData,
+    // Body data is read from the given file URL
     GSURLSessionTaskBodyTypeFile,
+    // Body data is read from the given input stream
     GSURLSessionTaskBodyTypeStream,
 };
 

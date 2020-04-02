@@ -264,7 +264,8 @@ static int curl_timer_function(CURL *easyHandle, int timeout, void *userdata) {
         }
     }
 
-  NSAssert(nil != handle, @"Transfer completed for easy handle, but it is not in the list of added handles.");
+  NSAssert(nil != handle, @"Transfer completed for easy handle"
+    @", but it is not in the list of added handles.");
 
   errCode = [handle urlErrorCodeWithEasyCode: easyCode];
   if (0 != errCode) 
@@ -274,7 +275,8 @@ static int curl_timer_function(CURL *easyHandle, int timeout, void *userdata) {
       if ([handle errorBuffer][0] == 0) 
         {
           const char *description = curl_easy_strerror(errCode);
-          d = [[NSString alloc] initWithCString:description encoding:NSUTF8StringEncoding];
+          d = [[NSString alloc] initWithCString: description 
+                                       encoding: NSUTF8StringEncoding];
         } 
       else 
         {

@@ -7,6 +7,20 @@
 @class NSURLSessionConfiguration;
 @class GSEasyHandle;
 
+/*
+ * Minimal wrapper around curl multi interface
+ * (https://curl.haxx.se/libcurl/c/libcurl-multi.html).
+ *
+ * The the *multi handle* manages the sockets for easy handles
+ * (`GSEasyHandle`), and this implementation uses
+ * libdispatch to listen for sockets being read / write ready.
+ *
+ * Using `dispatch_source_t` allows this implementation to be
+ * non-blocking and all code to run on the same thread 
+ * thus keeping is simple.
+ *
+ * - SeeAlso: GSEasyHandle
+ */
 @interface GSMultiHandle : NSObject
 {
   CURLM  *_rawHandle;
@@ -21,6 +35,7 @@
 
 @end
 
+// What read / write ready event to register / unregister.
 typedef NS_ENUM(NSUInteger, GSSocketRegisterActionType) {
     GSSocketRegisterActionTypeNone = 0,
     GSSocketRegisterActionTypeRegisterRead,
@@ -42,6 +57,15 @@ typedef NS_ENUM(NSUInteger, GSSocketRegisterActionType) {
 
 @end
 
+/*
+ * Read and write libdispatch sources for a specific socket.
+ *
+ * A simple helper that combines two sources -- both being optional.
+ *
+ * This info is stored into the socket using `curl_multi_assign()`.
+ *
+ * - SeeAlso: GSSocketRegisterAction
+ */
 @interface GSSocketSources : NSObject
 {
   dispatch_source_t _readSource;

@@ -347,6 +347,8 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
       }
 }
 
+// The data drain.
+// This depends on what the delegate need.
 - (GSDataDrain*) createTransferBodyDataDrain 
 {
   NSURLSession *s = [[self task] session];
@@ -593,6 +595,9 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
               result(GSEasyHandleWriteBufferResultBytes, 0, nil);
               break;
             case GSBodySourceDataChunkRetryLater:
+              // At this point we'll try to pause the easy handle. The body
+              // source is responsible for un-pausing the handle once data 
+              // becomes available.
               result(GSEasyHandleWriteBufferResultPause, -1, nil);
               break;
             case GSBodySourceDataChunkError:
@@ -604,6 +609,10 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 
 - (void) transferCompletedWithError: (NSError*)error
 {
+  // At this point the transfer is complete and we can decide what to do.
+  // If everything went well, we will simply forward the resulting data
+  // to the delegate. But in case of redirects etc. we might send another
+  // request.
   NSURLRequest        *request;
   NSURLResponse       *response;
   GSCompletionAction  *action;
