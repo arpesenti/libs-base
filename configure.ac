@@ -3404,6 +3404,31 @@ if test $HAVE_LIBDISPATCH = 1; then
 fi
 AC_SUBST(HAVE_LIBDISPATCH_RUNLOOP)
 
+
+#--------------------------------------------------------------------
+# Check dependencies of NSURLSession API
+#--------------------------------------------------------------------
+AC_ARG_ENABLE(nsurlsession,
+  [  --disable-nsurlsession  		Disable support for NSURLSession],,
+  enable_nsurlsession=yes)
+if test $enable_nsurlsession = yes; then
+  if test $HAVE_LIBDISPATCH = 0; then
+    AC_MSG_ERROR([Missing libdispatch (needed for NSURLSession).])
+  fi
+  AC_CHECK_LIB(curl, curl_global_init, have_curl=yes, have_curl=no)
+  if test $have_curl = no; then
+    AC_MSG_ERROR([Missing libcurl (needed for NSURLSession).])
+  fi
+  AC_CHECK_HEADERS(curl/curl.h, have_curl=yes, have_curl=no)
+  if test $have_curl = no; then
+    AC_MSG_ERROR([Missing curl.h (needed for NSURLSession).])
+  fi
+  AC_CHECK_DECL(CURLOPT_CONNECT_TO, good_curl=yes, good_curl=no)
+  if test $good_curl = no; then
+    AC_MSG_ERROR([Old libcurl (newer needed for NSURLSession).])
+  fi
+fi
+
 #--------------------------------------------------------------------
 # Check GMP for NSDecimal
 #--------------------------------------------------------------------
