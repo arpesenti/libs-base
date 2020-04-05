@@ -3406,6 +3406,67 @@ AC_SUBST(HAVE_LIBDISPATCH_RUNLOOP)
 
 
 #--------------------------------------------------------------------
+# Check for libcurl
+# See DEPENDENCIES POLICY at the start of this file.
+#--------------------------------------------------------------------
+CURL_CONFIG="curl-config"
+AC_ARG_WITH(curl, AS_HELP_STRING([--with-curl=<DIR>],
+  [use curl installed in directory <DIR>]))
+if test "$with_curl" != ""; then
+  CURL_CONFIG="$with_curl/bin/curl-config"
+fi
+
+AC_MSG_CHECKING([for libcurl])
+if eval $CURL_CONFIG --version 2>/dev/null >/dev/null; then
+  curl_ver=`$CURL_CONFIG --version | sed -e "s/libcurl //g"`
+  curl_maj=`echo $curl_ver | sed -e "s/^\(.*\)\.\(.*\)\.\(.*\)$/\1/"`
+  curl_min=`echo $curl_ver | sed -e "s/^\(.*\)\.\(.*\)\.\(.*\)$/\2/"`
+  if test $curl_maj -lt 7 -o \( $curl_maj -eq 7 -a $curl_min -lt 49 \); then
+    AC_MSG_RESULT([FAILED (version too old to use])
+  else
+    CURLCFLAGS=`$CURL_CONFIG --cflags`
+    CURLLIBS=`$CURL_CONFIG --libs`
+    CFLAGS="$CFLAGS $CURLCFLAGS"
+    LIBS="$LIBS $CURLLIBS"
+    AC_MSG_RESULT(yes ... version $curl_ver)
+    curl_ok=yes
+  fi
+else
+  AC_MSG_RESULT([FAILED (curl-config not found)])
+  curl_ok=no
+fi
+
+if test $curl_ok = yes; then
+  AC_MSG_CHECKING([for libcurl TLS support with gnutls])
+  if $CURL_CONFIG --configure | grep -q with-gnutls; then
+    AC_MSG_RESULT(yes)
+  else
+    AC_MSG_RESULT([Found libcurl not usable (lacks gnutls support).])
+    curl_ok=no
+  fi
+fi
+
+if test $curl_ok = yes; then
+  AC_CHECK_LIB(curl, curl_multi_perform, curl_ok=yes, curl_ok=no)
+fi
+if test $curl_ok = yes; then
+  AC_CHECK_HEADERS(curl/curl.h, curl_ok=yes, curl_ok=no)
+fi
+if test $curl_ok = yes; then
+  AC_CHECK_DECL(CURLOPT_CONNECT_TO, curl_ok=yes, curl_ok=no,
+    [#include <curl/curl.h>])
+fi
+if test $curl_ok = yes; then
+  # If curl supports runtime selection of the TLS module we will need
+  # to use curl_global_sslset to pick GNUTLS
+  AC_CHECK_FUNCS(curl_global_sslset)
+  HAVE_LIBCURL=1
+else
+  HAVE_LIBCURL=0
+fi
+AC_SUBST(HAVE_LIBCURL)
+
+#--------------------------------------------------------------------
 # Check dependencies of NSURLSession API
 #--------------------------------------------------------------------
 AC_ARG_ENABLE(nsurlsession,
@@ -3415,17 +3476,8 @@ if test $enable_nsurlsession = yes; then
   if test $HAVE_LIBDISPATCH = 0; then
     AC_MSG_ERROR([Missing libdispatch (needed for NSURLSession).])
   fi
-  AC_CHECK_LIB(curl, curl_global_init, have_curl=yes, have_curl=no)
-  if test $have_curl = no; then
+  if test $HAVE_LIBCURL = 0; then
     AC_MSG_ERROR([Missing libcurl (needed for NSURLSession).])
-  fi
-  AC_CHECK_HEADERS(curl/curl.h, have_curl=yes, have_curl=no)
-  if test $have_curl = no; then
-    AC_MSG_ERROR([Missing curl.h (needed for NSURLSession).])
-  fi
-  AC_CHECK_DECL(CURLOPT_CONNECT_TO, good_curl=yes, good_curl=no)
-  if test $good_curl = no; then
-    AC_MSG_ERROR([Old libcurl (newer needed for NSURLSession).])
   fi
 fi
 
