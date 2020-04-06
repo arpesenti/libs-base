@@ -903,6 +903,10 @@ static int nextSessionIdentifier()
 
 @end
 
+@implementation NSURLSessionUploadTask
+
+@end
+
 @implementation NSURLSessionConfiguration
 
 - (instancetype) init
