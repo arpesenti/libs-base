@@ -482,6 +482,9 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
   NSAssert(nil != [request URL], @"No URL in request.");
   [_easyHandle setURL: [request URL]];
 
+  [_easyHandle setPipeWait: 
+    [[[task session] configuration] HTTPShouldUsePipelining]];
+
   [_easyHandle setSessionConfig:[[task session] configuration]];
   [_easyHandle setAllowedProtocolsToHTTPAndHTTPS];
   [_easyHandle setPreferredReceiveBufferSize: NSIntegerMax];

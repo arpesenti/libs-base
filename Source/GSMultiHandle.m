@@ -113,7 +113,6 @@ static int curl_timer_function(CURL *easyHandle, int timeout, void *userdata) {
 {
   handleEasyCode(curl_multi_setopt(_rawHandle, CURLMOPT_MAX_HOST_CONNECTIONS, [configuration HTTPMaximumConnectionsPerHost])); 
   handleEasyCode(curl_multi_setopt(_rawHandle, CURLMOPT_PIPELINING, [configuration HTTPShouldUsePipelining] ? CURLPIPE_MULTIPLEX : CURLPIPE_NOTHING)); 
-  handleEasyCode(curl_multi_setopt(_rawHandle, CURLOPT_PIPEWAIT, [configuration HTTPShouldUsePipelining] ? 1L : 0L)); 
 }
 
 - (void)setupCallbacks 

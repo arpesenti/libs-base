@@ -339,6 +339,11 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
     }
 }
 
+- (void) setPipeWait: (BOOL)flag
+{
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_PIPEWAIT, flag ? 1 : 0));
+}
+
 - (void) setConnectToHost: (NSString*)host port: (NSInteger)port 
 {
   if (nil != host) 
