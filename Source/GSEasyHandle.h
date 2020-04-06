@@ -128,6 +128,8 @@ typedef NS_ENUM(NSUInteger, GSEasyHandleWriteBufferResult) {
  */
 - (void) setURL: (NSURL*)URL;
 
+- (void) setPipeWait: (BOOL)flag;
+
 - (instancetype) initWithDelegate: (id<GSEasyHandleDelegate>)delegate;
 
 - (void) transferCompletedWithError: (NSError*)error;
