@@ -134,7 +134,7 @@ static int nextSessionIdentifier()
         }
       _delegate = delegate;
       ASSIGN(_configuration, configuration);
-      _nextTaskIdentifier = 0;
+      _nextTaskIdentifier = 1;
       _invalidated = NO;
       _multiHandle = [[GSMultiHandle alloc] initWithConfiguration: configuration
                                                         workQueue: _workQueue];
