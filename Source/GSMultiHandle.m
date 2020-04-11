@@ -303,7 +303,7 @@ static int curl_timer_function(CURL *easyHandle, int timeout, void *userdata) {
   // that we're interested in read and/or write readiness. We will do so
   // through libdispatch (DispatchSource) and store the source(s) inside
   // a `SocketSources` which we in turn store inside libcurl's multi handle
-  // by means of curl_multi_assign() -- we retain the object fist.
+  // by means of curl_multi_assign() -- we retain the object first.
 
   GSSocketRegisterAction  *action;
   GSSocketSources         *socketSources;
@@ -322,8 +322,7 @@ static int curl_timer_function(CURL *easyHandle, int timeout, void *userdata) {
   else if (nil != socketSources
     && GSSocketRegisterActionTypeUnregister == [action type]) 
     {
-      GSSocketSources *s = (GSSocketSources*)socketSourcePtr;
-      DESTROY(s);
+      DESTROY(socketSources);
     }
 
   if (nil != socketSources) 
