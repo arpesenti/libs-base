@@ -3473,6 +3473,12 @@ AC_ARG_ENABLE(nsurlsession,
   [  --disable-nsurlsession  		Disable support for NSURLSession],,
   enable_nsurlsession=yes)
 if test $enable_nsurlsession = yes; then
+  if test "$OBJC_RUNTIME_LIB" != "ng"; then
+    AC_MSG_ERROR([Missing ng runtime (needed for NSURLSession).])
+  fi
+  if test $HAVE_BLOCKS = 0; then
+    AC_MSG_ERROR([Missing blocks support (needed for NSURLSession).])
+  fi
   if test $HAVE_LIBDISPATCH = 0; then
     AC_MSG_ERROR([Missing libdispatch (needed for NSURLSession).])
   fi

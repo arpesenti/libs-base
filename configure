@@ -13122,6 +13122,12 @@ else
 fi
 
 if test $enable_nsurlsession = yes; then
+  if test "$OBJC_RUNTIME_LIB" != "ng"; then
+    as_fn_error $? "Missing ng runtime (needed for NSURLSession)." "$LINENO" 5
+  fi
+  if test $HAVE_BLOCKS = 0; then
+    as_fn_error $? "Missing blocks support (needed for NSURLSession)." "$LINENO" 5
+  fi
   if test $HAVE_LIBDISPATCH = 0; then
     as_fn_error $? "Missing libdispatch (needed for NSURLSession)." "$LINENO" 5
   fi
