@@ -10,6 +10,7 @@
 #import "GSEasyHandle.h"
 #import "GSTaskRegistry.h"
 #import "GSHTTPURLProtocol.h"
+#import "GSURLSessionTaskBody.h"
 
 
 // NSURLSession API implementation overview
@@ -582,9 +583,21 @@ static int nextSessionIdentifier()
 
   if (nil != (self = [super init]))
     {
+      NSData		*data;
+      NSInputStream	*stream;
+
       _session = session;
       ASSIGN(_originalRequest, request);
       ASSIGN(_currentRequest, request);
+      if ([(data = [request HTTPBody]) length] > 0)
+	{
+	  _knownBody = [[GSURLSessionTaskBody alloc] initWithData: data];
+	}
+      else if (nil != (stream = [request HTTPBodyStream]))
+	{
+	  _knownBody = [[GSURLSessionTaskBody alloc]
+	    initWithInputStream: stream];
+	}
       _taskIdentifier = identifier;
       _workQueue = dispatch_queue_create_with_target("org.gnustep.NSURLSessionTask.WorkQueue", DISPATCH_QUEUE_SERIAL, [session workQueue]);
       _state = NSURLSessionTaskStateSuspended;
