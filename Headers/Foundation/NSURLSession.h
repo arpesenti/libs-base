@@ -11,17 +11,19 @@
 @protocol NSURLSessionDelegate;
 @protocol NSURLSessionTaskDelegate;
 
-@class NSURLSessionConfiguration;
-@class NSOperationQueue;
-@class NSURLSessionDataTask;
-@class NSURL;
-@class NSURLRequest;
-@class NSURLResponse;
-@class NSError;
-@class NSURLCache;
 @class GSMultiHandle;
 @class GSURLSessionTaskBody;
+@class NSError;
 @class NSHTTPURLResponse;
+@class NSOperationQueue;
+@class NSURL;
+@class NSURLAuthenticationChallenge;
+@class NSURLCache;
+@class NSURLCredential;
+@class NSURLRequest;
+@class NSURLResponse;
+@class NSURLSessionConfiguration;
+@class NSURLSessionDataTask;
 
 
 /*
@@ -242,6 +244,9 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
   NSDictionary             *_HTTPAdditionalHeaders;
 }
 
+@property (class, readonly, strong)
+  NSURLSessionConfiguration *defaultSessionConfiguration;
+
 - (NSURLCache*) URLCache;
 
 - (void) setURLCache: (NSURLCache*)cache;
@@ -280,8 +285,22 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
 
 @end
 
-@protocol NSURLSessionDelegate <NSObject>
+typedef NS_ENUM(NSInteger, NSURLSessionAuthChallengeDisposition) {
+  NSURLSessionAuthChallengeUseCredential = 0,
+  NSURLSessionAuthChallengePerformDefaultHandling = 1,
+  NSURLSessionAuthChallengeCancelAuthenticationChallenge = 2,
+  NSURLSessionAuthChallengeRejectProtectionSpace = 3
+};
 
+typedef NS_ENUM(NSInteger, NSURLSessionResponseDisposition) {
+  NSURLSessionResponseCancel = 0,
+  NSURLSessionResponseAllow = 1,
+  NSURLSessionResponseBecomeDownload = 2,
+  NSURLSessionResponseBecomeStream  = 3
+};
+
+@protocol NSURLSessionDelegate <NSObject>
+@optional
 /* The last message a session receives.  A session will only become
  * invalid because of a systemic error or when it has been
  * explicitly invalidated, in which case the error parameter will be nil.
@@ -289,10 +308,17 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
 - (void)         URLSession: (NSURLSession*)session 
   didBecomeInvalidWithError: (NSError*)error;
 
+/* Implementing this method permits a delegate to provide authentication
+ * credentials in response to a challenge from the remote server.
+ */
+- (void) URLSession: (NSURLSession*)session
+didReceiveChallenge: (NSURLAuthenticationChallenge*)challenge
+  completionHandler: (void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential))handler;
+
 @end
 
 @protocol NSURLSessionTaskDelegate <NSURLSessionDelegate>
-
+@optional
 /* Sent as the last message related to a specific task.  Error may be
  * nil, which implies that no error occurred and this task is complete. 
  */
@@ -300,6 +326,15 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
                   task: (NSURLSessionTask*)task
   didCompleteWithError: (NSError*)error;
      
+/* Called to request authentication credentials from the delegate when
+ * an authentication request is received from the server which is specific
+ * to this task.
+ */
+- (void) URLSession: (NSURLSession*)session 
+	       task: (NSURLSessionTask*)task 
+didReceiveChallenge: (NSURLAuthenticationChallenge*)challenge 
+  completionHandler: (void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential))handler;
+
 /* Periodically informs the delegate of the progress of sending body content 
  * to the server.
  */
