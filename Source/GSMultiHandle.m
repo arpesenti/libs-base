@@ -316,7 +316,7 @@ static int curl_timer_function(CURL *easyHandle, int timeout, void *userdata) {
       GSSocketSources *s;
 
       s = [[GSSocketSources alloc] init];
-      curl_multi_assign(_rawHandle, socket, &s);
+      curl_multi_assign(_rawHandle, socket, (void*)s);
       socketSources = s;
     } 
   else if (nil != socketSources
@@ -331,8 +331,8 @@ static int curl_timer_function(CURL *easyHandle, int timeout, void *userdata) {
                                       socket: socket
                                        queue: _queue
                                      handler: ^{
-                                                [self performActionForSocket: socket];
-                                               }];
+	  [self performActionForSocket: socket];
+        }];
     }
 
   return 0;
