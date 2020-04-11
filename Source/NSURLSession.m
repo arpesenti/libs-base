@@ -586,7 +586,7 @@ static int nextSessionIdentifier()
       ASSIGN(_originalRequest, request);
       ASSIGN(_currentRequest, request);
       _taskIdentifier = identifier;
-      _workQueue = dispatch_queue_create_with_target("org.gnustep.NSURLSessionTask.WrokQueue", DISPATCH_QUEUE_SERIAL, [session workQueue]);
+      _workQueue = dispatch_queue_create_with_target("org.gnustep.NSURLSessionTask.WorkQueue", DISPATCH_QUEUE_SERIAL, [session workQueue]);
       _state = NSURLSessionTaskStateSuspended;
       _suspendCount = 1;
       _protocolLock = [[NSLock alloc] init];
