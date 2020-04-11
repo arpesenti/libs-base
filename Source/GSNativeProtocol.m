@@ -374,7 +374,7 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 
   task = [self task];
 
-  if (_internalState == GSNativeProtocolInternalStateTransferReady)
+  if (_internalState == GSNativeProtocolInternalStateInitial)
     {
       NSAssert(nil != [task originalRequest], @"Task has no original request.");
 
@@ -382,7 +382,8 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
       if (nil != [self cachedResponse] 
         && [self canRespondFromCacheUsing: [self cachedResponse]])
         {
-          [self setInternalState: GSNativeProtocolInternalStateFulfillingFromCache];
+          [self setInternalState:
+	    GSNativeProtocolInternalStateFulfillingFromCache];
           dispatch_async([task workQueue],
             ^{
               id<NSURLProtocolClient> client;
@@ -395,17 +396,20 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
                 cacheStoragePolicy: NSURLCacheStorageNotAllowed];
               if ([[[self cachedResponse] data] length] > 0)
                 {
-                  if ([client respondsToSelector: @selector(URLProtocol:didLoad:)])
+                  if ([client respondsToSelector:
+		    @selector(URLProtocol:didLoad:)])
                     {
                       [client URLProtocol: self 
                               didLoadData: [[self cachedResponse] data]];
                     }
                 }
-              if ([client respondsToSelector: @selector(URLProtocolDidFinishLoading:)])
+              if ([client respondsToSelector:
+		@selector(URLProtocolDidFinishLoading:)])
                 {
                   [client URLProtocolDidFinishLoading: self];
                 }
-              [self setInternalState: GSNativeProtocolInternalStateTaskCompleted];
+              [self setInternalState:
+		GSNativeProtocolInternalStateTaskCompleted];
             });
         }
       else
