@@ -118,11 +118,13 @@ static int nextSessionIdentifier()
 {
   if (nil != (self = [super init]))
     {
+      char	label[30];
+
       _taskRegistry = [[GSTaskRegistry alloc] init];
       curl_global_init(CURL_GLOBAL_SSL);
       _identifier = nextSessionIdentifier();
-      NSString *queueLabel = [NSString stringWithFormat: @"NSURLSession %d", _identifier];
-      _workQueue = dispatch_queue_create([queueLabel UTF8String], DISPATCH_QUEUE_SERIAL);
+      sprintf(label, "NSURLSession %d", _identifier);
+      _workQueue = dispatch_queue_create(label, DISPATCH_QUEUE_SERIAL);
       if (nil != queue)
         {
           ASSIGN(_delegateQueue, queue);
@@ -909,6 +911,21 @@ static int nextSessionIdentifier()
 
 @implementation NSURLSessionConfiguration
 
+static NSURLSessionConfiguration	*def = nil;
+
++ (void) initialize
+{
+  if (nil == def)
+    {
+      def = [NSURLSessionConfiguration new];
+    }
+}
+
++ (NSURLSessionConfiguration*) defaultSessionConfiguration
+{
+  return AUTORELEASE([def copy]);
+}
+
 - (instancetype) init
 {
   if (nil != (self = [super init]))
@@ -1036,8 +1053,12 @@ static int nextSessionIdentifier()
           NSArray *cookies = [_HTTPCookieStorage cookiesForURL: [request URL]];
           if (nil != cookies && [cookies count] > 0) 
             {
-              NSDictionary *cookiesHeaderFields = [NSHTTPCookie requestHeaderFieldsWithCookies: cookies];
-              NSString *cookieValue = [cookiesHeaderFields objectForKey: @"Cookie"];
+              NSDictionary	*cookiesHeaderFields;
+              NSString		*cookieValue;
+
+              cookiesHeaderFields
+		= [NSHTTPCookie requestHeaderFieldsWithCookies: cookies];
+              cookieValue = [cookiesHeaderFields objectForKey: @"Cookie"];
               if (nil != cookieValue && [cookieValue length] > 0) 
                 {
                   [r setValue: cookieValue forHTTPHeaderField: @"Cookie"];
@@ -1062,7 +1083,8 @@ static int nextSessionIdentifier()
       copy->_HTTPCookieAcceptPolicy = _HTTPCookieAcceptPolicy;
       copy->_HTTPCookieStorage = [_HTTPCookieStorage copy];
       copy->_HTTPShouldSetCookies = _HTTPShouldSetCookies;
-      copy->_HTTPAdditionalHeaders = [_HTTPAdditionalHeaders copyWithZone: zone];
+      copy->_HTTPAdditionalHeaders
+	= [_HTTPAdditionalHeaders copyWithZone: zone];
     }
 
   return copy;

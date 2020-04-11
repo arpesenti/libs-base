@@ -207,28 +207,34 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
 {
   // write
   handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_WRITEDATA, self));
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_WRITEFUNCTION, curl_write_function));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_WRITEFUNCTION,
+    curl_write_function));
 
   // read
   handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_READDATA, self));
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_READFUNCTION, curl_read_function));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_READFUNCTION,
+    curl_read_function));
 
   // header
   handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_HEADERDATA, self));
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_HEADERFUNCTION, curl_header_function));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_HEADERFUNCTION,
+    curl_header_function));
 
   // socket options
   handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_SOCKOPTDATA, self));
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_SOCKOPTFUNCTION, curl_socket_function));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_SOCKOPTFUNCTION,
+    curl_socket_function));
 
   // seeking in input stream
   handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_SEEKDATA, self));
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_SEEKFUNCTION, curl_seek_function));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_SEEKFUNCTION,
+    curl_seek_function));
 }
 
 - (int) urlErrorCodeWithEasyCode: (int)easyCode 
 {
     int failureErrno = (int)[self connectFailureErrno];
+
     if (easyCode == CURLE_OK) 
       {
         return 0;
@@ -290,7 +296,8 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
   if (flag) 
     {
       handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_DEBUGDATA, self));
-      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_DEBUGFUNCTION, curl_debug_function));
+      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_DEBUGFUNCTION,
+	curl_debug_function));
     } 
   else 
     {
@@ -301,22 +308,26 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
 
 - (void) setPassHeadersToDataStream: (BOOL)flag 
 {
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_HEADER, flag ? 1 : 0));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_HEADER,
+    flag ? 1 : 0));
 }
 
 - (void) setFollowLocation: (BOOL)flag 
 {
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_FOLLOWLOCATION, flag ? 1 : 0));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_FOLLOWLOCATION,
+    flag ? 1 : 0));
 }
 
 - (void) setProgressMeterOff: (BOOL)flag 
 {
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_NOPROGRESS, flag ? 1 : 0));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_NOPROGRESS,
+    flag ? 1 : 0));
 }
 
 - (void) setSkipAllSignalHandling: (BOOL)flag 
 {
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_NOSIGNAL, flag ? 1 : 0));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_NOSIGNAL,
+    flag ? 1 : 0));
 }
 
 - (void) setErrorBuffer: (char*)buffer 
@@ -327,7 +338,8 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
 
 - (void) setFailOnHTTPErrorCode: (BOOL)flag 
 {
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_FAILONERROR, flag ? 1 : 0));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_FAILONERROR,
+    flag ? 1 : 0));
 }
 
 - (void) setURL: (NSURL *)URL 
@@ -335,7 +347,8 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
   ASSIGN(_URL, URL);
   if (nil != [URL absoluteString]) 
     {
-      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_URL, [[URL absoluteString] UTF8String]));
+      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_URL,
+	[[URL absoluteString] UTF8String]));
     }
 }
 
@@ -350,19 +363,21 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
     {
       NSString *originHost = [_URL host];
       NSString *value = nil;
-      if (port == 0) 
+
+      if (0 == port)
         {
-          value = [NSString stringWithFormat:@"%@::%@", originHost, host];
+          value = [NSString stringWithFormat: @"%@::%@", originHost, host];
         } 
       else 
         {
-          value = [NSString stringWithFormat:@"%@:%lu:%@", 
+          value = [NSString stringWithFormat: @"%@:%lu:%@", 
             originHost, port, host];
         }
       
       struct curl_slist *connect_to = NULL;
       connect_to = curl_slist_append(NULL, [value UTF8String]);
-      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_CONNECT_TO, connect_to));
+      handleEasyCode(
+	curl_easy_setopt(_rawHandle, CURLOPT_CONNECT_TO, connect_to));
     }
 }
 
@@ -373,13 +388,16 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
 
 - (void) setAllowedProtocolsToHTTPAndHTTPS 
 {
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS));
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_PROTOCOLS,
+    CURLPROTO_HTTP | CURLPROTO_HTTPS));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_REDIR_PROTOCOLS,
+    CURLPROTO_HTTP | CURLPROTO_HTTPS));
 }
 
 - (void) setPreferredReceiveBufferSize: (NSInteger)size 
 {
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_BUFFERSIZE, MIN(size, CURL_MAX_WRITE_SIZE)));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_BUFFERSIZE,
+    MIN(size, CURL_MAX_WRITE_SIZE)));
 }
 
 - (void) setCustomHeaders: (NSArray*)headers 
@@ -399,13 +417,17 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
 {
   if (flag) 
     {
-      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_ACCEPT_ENCODING, ""));
-      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_HTTP_CONTENT_DECODING, 1));
+      handleEasyCode(curl_easy_setopt(_rawHandle,
+	CURLOPT_ACCEPT_ENCODING, ""));
+      handleEasyCode(curl_easy_setopt(_rawHandle,
+	CURLOPT_HTTP_CONTENT_DECODING, 1));
     } 
   else 
     {
-      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_ACCEPT_ENCODING, NULL));
-      handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_HTTP_CONTENT_DECODING, 0));
+      handleEasyCode(curl_easy_setopt(_rawHandle,
+	CURLOPT_ACCEPT_ENCODING, NULL));
+      handleEasyCode(curl_easy_setopt(_rawHandle,
+	CURLOPT_HTTP_CONTENT_DECODING, 0));
     }
 }
 
@@ -416,12 +438,14 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
       return;
     }
 
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_CUSTOMREQUEST, [method UTF8String]));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_CUSTOMREQUEST,
+    [method UTF8String]));
 }
 
 - (void) setNoBody: (BOOL)flag 
 {
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_NOBODY, flag ? 1 : 0));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_NOBODY,
+    flag ? 1 : 0));
 }
 
 - (void) setUpload: (BOOL)flag 
@@ -431,12 +455,14 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
 
 - (void) setRequestBodyLength: (int64_t)length 
 {
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_INFILESIZE_LARGE, length));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_INFILESIZE_LARGE,
+    length));
 }
 
 - (void) setTimeout: (NSInteger)timeout 
 {
-  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_TIMEOUT, (long)timeout));
+  handleEasyCode(curl_easy_setopt(_rawHandle, CURLOPT_TIMEOUT,
+    (long)timeout));
 }
 
 - (void) setProxy 
@@ -446,9 +472,13 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
 
 - (void) updatePauseState: (GSEasyHandlePauseState)pauseState 
 {
-  NSUInteger send = pauseState & GSEasyHandlePauseStateSend;
-  NSUInteger receive = pauseState & GSEasyHandlePauseStateReceive;
-  int bitmask = 0 | (send ? CURLPAUSE_SEND : CURLPAUSE_SEND_CONT) | (receive ? CURLPAUSE_RECV : CURLPAUSE_RECV_CONT);
+  NSUInteger	send = pauseState & GSEasyHandlePauseStateSend;
+  NSUInteger	receive = pauseState & GSEasyHandlePauseStateReceive;
+  int		bitmask;
+
+  bitmask = 0
+    | (send ? CURLPAUSE_SEND : CURLPAUSE_SEND_CONT)
+    | (receive ? CURLPAUSE_RECV : CURLPAUSE_RECV_CONT);
   handleEasyCode(curl_easy_pause(_rawHandle, bitmask));
 }
 
@@ -473,11 +503,12 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
       return;
     }
     
-    _pauseState = _pauseState | GSEasyHandlePauseStateSend;
-    [self updatePauseState: _pauseState];
+  _pauseState = _pauseState | GSEasyHandlePauseStateSend;
+  [self updatePauseState: _pauseState];
 }
 
-- (void) unpauseSend {
+- (void) unpauseSend
+{
   if (!(_pauseState & GSEasyHandlePauseStateSend))
     {
       return;
@@ -487,7 +518,8 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
   [self updatePauseState: _pauseState];
 }
 
-- (void) pauseReceive {
+- (void) pauseReceive
+{
   if (_pauseState & GSEasyHandlePauseStateReceive) 
     {
       return;
@@ -512,20 +544,22 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
                         size: (NSInteger)size 
                        nmemb: (NSInteger)nmemb 
 {
-  NSData              *buffer;
-  GSEasyHandleAction  action;
+  NSData              	*buffer;
+  GSEasyHandleAction  	action;
+  NSUInteger		bytes;
 
   if (![_delegate respondsToSelector: @selector(didReceiveData:)])
     {
       return 0;
     }
 
-  buffer = AUTORELEASE([[NSData alloc] initWithBytes: data length: size * nmemb]);
+  bytes = size * nmemb;
+  buffer = AUTORELEASE([[NSData alloc] initWithBytes: data length: bytes]);
   action = [_delegate didReceiveData: buffer];
   switch (action) 
     {
       case GSEasyHandleActionProceed:
-        return size * nmemb;
+        return bytes;
       case GSEasyHandleActionAbort:
         return 0;
       case GSEasyHandleActionPause:
@@ -539,14 +573,16 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
                              nmemb: (NSInteger)nmemb
                      contentLength: (double)contentLength 
 {
-  NSData              *buffer;
-  GSEasyHandleAction  action;
+  NSData              	*buffer;
+  GSEasyHandleAction  	action;
+  NSInteger		bytes = size * nmemb;
 
-  buffer = AUTORELEASE([[NSData alloc] initWithBytes:headerData length:size * nmemb]);
+  buffer = AUTORELEASE([[NSData alloc] initWithBytes: headerData length: bytes]);
 
   [self setCookiesWithHeaderData: buffer];
 
-  if (![_delegate respondsToSelector: @selector(didReceiveHeaderData:contentLength:)]) 
+  if (![_delegate respondsToSelector:
+    @selector(didReceiveHeaderData:contentLength:)]) 
     {
       return 0;
     }
@@ -556,7 +592,7 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
   switch (action) 
     {
       case GSEasyHandleActionProceed:
-        return size * nmemb;
+        return bytes;
       case GSEasyHandleActionAbort:
         return 0;
       case GSEasyHandleActionPause:

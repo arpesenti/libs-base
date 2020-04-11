@@ -285,9 +285,10 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
     {
       [task setKnownBody: body];
       [self setInternalState: GSNativeProtocolInternalStateTransferReady];
-      ASSIGN(_transferState, [self createTransferStateWithURL: [request URL] 
-                                                         body: body 
-                                                    workQueue: [task workQueue]]);
+      ASSIGN(_transferState,
+	[self createTransferStateWithURL: [request URL] 
+				    body: body 
+			       workQueue: [task workQueue]]);
       [self configureEasyHandleForRequest: request body: body];
       if ([task suspendCount] < 1) 
         {

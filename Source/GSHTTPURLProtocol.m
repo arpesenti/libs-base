@@ -465,6 +465,14 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
 
   BOOL debugLibcurl = [[[NSProcessInfo processInfo] environment] 
     objectForKey: @"URLSessionDebugLibcurl"] ? YES : NO;
+
+  /* Programatically turning debug on in the request supercedes any
+   * environment variable setting.
+   */
+  if ([request _debug])
+    {
+      debugLibcurl = YES;
+    }
   [_easyHandle setVerboseMode: debugLibcurl];
 
   BOOL debugOutput = [[[NSProcessInfo processInfo] environment] 
