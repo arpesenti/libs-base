@@ -368,7 +368,9 @@ ifneq ($(GNUSTEP_TARGET_OS), mingw32)
   endif
 endif
 
+ifeq ($(HAVE_BLOCKS), 1)
 ifeq ($(GNUSTEP_BASE_HAVE_LIBDISPATCH), 1)
+ifeq ($(GNUSTEP_BASE_HAVE_LIBCURL), 1)
   BASE_MFILES += \
 	GSEasyHandle.m \
 	GSHTTPURLProtocol.m \
@@ -380,6 +382,8 @@ ifeq ($(GNUSTEP_BASE_HAVE_LIBDISPATCH), 1)
 	GSURLSessionTaskBody.m \
 	GSURLSessionTaskBodySource.m \
 	NSURLSession.m
+endif
+endif
 endif
 
 ifeq ($(GNUSTEP_BASE_HAVE_MDNS), 1)
