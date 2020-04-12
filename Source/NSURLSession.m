@@ -355,7 +355,8 @@ static int nextSessionIdentifier()
               return;
             }
 
-          if ([delegate respondsToSelector: @selector(URLSession:task:didCompleteWithError:)])
+          if ([delegate respondsToSelector:
+	    @selector(URLSession:task:didCompleteWithError:)])
             {
               [(id<NSURLSessionTaskDelegate>)delegate URLSession: session 
                                                             task: task 
@@ -387,7 +388,7 @@ static int nextSessionIdentifier()
 }
 
 - (void) URLProtocol: (NSURLProtocol *)protocol
-	       didLoadData: (NSData *)data
+	 didLoadData: (NSData *)data
 {
   NSURLSessionTask          *task = [protocol task];
   NSURLSession              *session;
@@ -527,7 +528,8 @@ static int nextSessionIdentifier()
               return;
             }
           
-          if ([delegate respondsToSelector: @selector(URLSession:task:didCompleteWithError:)])
+          if ([delegate respondsToSelector:
+	    @selector(URLSession:task:didCompleteWithError:)])
             {
               [(id<NSURLSessionTaskDelegate>)delegate URLSession: session 
                                                             task: task 

@@ -72,7 +72,8 @@ static size_t curl_read_function(char *data, size_t size, size_t nmemb, void *us
   return [handle fillWriteBuffer: data size: size nmemb: nmemb];
 }
 
-size_t curl_header_function(char *data, size_t size, size_t nmemb, void *userdata) 
+size_t
+curl_header_function(char *data, size_t size, size_t nmemb, void *userdata) 
 {
   if (!userdata)
     {
@@ -84,7 +85,8 @@ size_t curl_header_function(char *data, size_t size, size_t nmemb, void *userdat
 
   [handle resetTimer]; //FIXME should be deffered after the function returns?
 
-  handleEasyCode(curl_easy_getinfo(handle.rawHandle, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &length));
+  handleEasyCode(curl_easy_getinfo(handle.rawHandle,
+    CURLINFO_CONTENT_LENGTH_DOWNLOAD, &length));
   
   return [handle didReceiveHeaderData: data 
                                  size: size 
@@ -92,7 +94,8 @@ size_t curl_header_function(char *data, size_t size, size_t nmemb, void *userdat
                         contentLength: length];
 }
 
-static int curl_seek_function(void *userdata, curl_off_t offset, int origin) 
+static int
+curl_seek_function(void *userdata, curl_off_t offset, int origin) 
 {
   if (!userdata)
     {
@@ -104,27 +107,30 @@ static int curl_seek_function(void *userdata, curl_off_t offset, int origin)
   return [handle seekInputStreamWithOffset: offset origin: origin];
 }
 
-static int curl_debug_function(CURL *handle, curl_infotype type, char *data, size_t size, void *userptr) 
+static int
+curl_debug_function(CURL *handle, curl_infotype type, char *data,
+  size_t size, void *userptr) 
 {
   if (!userptr)
     {
       return 0;
     }
 
-    NSURLSessionTask *task = (NSURLSessionTask*)userptr;
-    NSString *text = @"";
+  NSURLSessionTask *task = (NSURLSessionTask*)userptr;
+  NSString *text = @"";
 
-    if (data) 
-      {
-        text = [NSString stringWithUTF8String: data];
-      }
-    
-    NSLog(@"%lu %d %@", [task taskIdentifier], type, text);
+  if (data) 
+    {
+      text = [NSString stringWithUTF8String: data];
+    }
+  
+  NSLog(@"%lu %d %@", [task taskIdentifier], type, text);
 
-    return 0;
+  return 0;
 }
 
-static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype type) 
+static int
+curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype type) 
 { 
   return 0; 
 }
@@ -577,7 +583,7 @@ static int curl_socket_function(void *userdata, curl_socket_t fd, curlsocktype t
   GSEasyHandleAction  	action;
   NSInteger		bytes = size * nmemb;
 
-  buffer = AUTORELEASE([[NSData alloc] initWithBytes: headerData length: bytes]);
+  buffer = [NSData dataWithBytes: headerData length: bytes];
 
   [self setCookiesWithHeaderData: buffer];
 

@@ -234,10 +234,12 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
 
       if (maxAge > 0) 
         {
+          NSDate	*expiration;
+
           hasMaxAge = YES;
 
-          NSDate *expiration = [expirationStart dateByAddingTimeInterval: maxAge];
-          if ([now timeIntervalSince1970] >= [expiration timeIntervalSince1970]) 
+          expiration = [expirationStart dateByAddingTimeInterval: maxAge];
+          if ([now timeIntervalSince1970] >= [expiration timeIntervalSince1970])
             {
               return NO;
             }
@@ -640,11 +642,12 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
   return action;
 }
 
-// If the response is a redirect, return the new request
-//
-// RFC 7231 section 6.4 defines redirection behavior for HTTP/1.1
-//
-// - SeeAlso: <https://tools.ietf.org/html/rfc7231#section-6.4>
+/* If the response is a redirect, return the new request
+ *
+ * RFC 7231 section 6.4 defines redirection behavior for HTTP/1.1
+ *
+ * - SeeAlso: <https://tools.ietf.org/html/rfc7231#section-6.4>
+ */
 - (NSURLRequest*) redirectRequestForResponse: (NSHTTPURLResponse*)response 
                                  fromRequest: (NSURLRequest*)fromRequest 
 {
@@ -702,15 +705,17 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
   [components setScheme: scheme];
   [components setHost: host];
   
-  // Use the original port if the new URL does not contain a host
-  // ie Location: /foo => <original host>:<original port>/Foo
-  // but Location: newhost/foo  will ignore the original port
+  /* Use the original port if the new URL does not contain a host
+   * ie Location: /foo => <original host>:<original port>/Foo
+   * but Location: newhost/foo  will ignore the original port
+   */
   if ([targetURL host] == nil) 
     {
       [components setPort: port];
     }
 
-  // The path must either begin with "/" or be an empty string.
+  /* The path must either begin with "/" or be an empty string.
+   */
   if (![[targetURL relativePath] hasPrefix:@"/"]) 
     {
       [components setPath: 
@@ -993,13 +998,13 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
   NSURLSessionDataTask  *task;
   NSHTTPURLResponse     *response;
 
-  if (![[self task] isKindOfClass: [NSURLSessionDataTask class]])
+  task = (NSURLSessionDataTask*)[self task];
+
+  if (![task isKindOfClass: [NSURLSessionDataTask class]])
     {
       return;
     }
   
-  task = (NSURLSessionDataTask*)[self task];
-
   NSAssert(_internalState == GSNativeProtocolInternalStateTransferInProgress,
     @"Transfer not in progress.");
 
@@ -1010,7 +1015,7 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
 
   if (nil != [[task session] delegate])
     {
-      switch([response statusCode])
+      switch ([response statusCode])
         {
           case 301:
           case 302:

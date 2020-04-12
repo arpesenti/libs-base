@@ -614,13 +614,14 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 
 - (void) transferCompletedWithError: (NSError*)error
 {
-  // At this point the transfer is complete and we can decide what to do.
-  // If everything went well, we will simply forward the resulting data
-  // to the delegate. But in case of redirects etc. we might send another
-  // request.
-  NSURLRequest        *request;
-  NSURLResponse       *response;
-  GSCompletionAction  *action;
+  /* At this point the transfer is complete and we can decide what to do.
+   * If everything went well, we will simply forward the resulting data
+   * to the delegate. But in case of redirects etc. we might send another
+   * request.
+   */
+  NSURLRequest        	*request;
+  NSURLResponse       	*response;
+  GSCompletionAction  	*action;
 
   if (nil != error) 
     {
@@ -701,7 +702,6 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
     {
       NSData                  *data;
       
-
       if (nil != [bodyDataDrain data])
         {
           data = [NSData dataWithData: [bodyDataDrain data]];
