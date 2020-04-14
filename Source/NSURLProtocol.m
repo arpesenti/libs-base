@@ -524,7 +524,6 @@ typedef struct {
 {
   if (this != 0)
     {
-      [self stopLoading];
       if (this->input != nil)
 	{
 	  [this->input setDelegate: nil];
@@ -619,7 +618,11 @@ typedef struct {
     {
       this->request = [_request copy];
       this->cachedResponse = RETAIN(_cachedResponse);
-      this->client = RETAIN(client);
+      if (nil == _client)
+	{
+	  _client = [[self class] _ProtocolClient];
+	}
+      this->client = RETAIN(_client);
     }
   return self;
 }
@@ -684,6 +687,13 @@ typedef struct {
   return protoClass;
 }
 
+/* Internal method to return a client to handle callbacks if the protocol
+ * is initialised without one.
+ */
++ (id<NSURLProtocolClient>) _ProtocolClient
+{
+  return nil;
+}
 @end
 
 @implementation	NSURLProtocol (Subclassing)

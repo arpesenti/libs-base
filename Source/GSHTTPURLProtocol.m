@@ -1,7 +1,9 @@
+#import "GSURLPrivate.h"
 #import "GSHTTPURLProtocol.h"
 #import "GSTransferState.h"
 #import "GSURLSessionTaskBody.h"
 #import "GSTimeoutSource.h"
+
 
 @interface NSURLSessionTask (Internal)
 
@@ -44,7 +46,8 @@
 
 @end
 
-static NSDate* dateFromString(NSString *v) 
+static NSDate*
+dateFromString(NSString *v) 
 {
   // https://tools.ietf.org/html/rfc2616#section-3.3.1
   NSDateFormatter *df;
@@ -79,7 +82,8 @@ static NSDate* dateFromString(NSString *v)
   return nil;
 }
 
-static NSInteger parseArgumentPart(NSString *part, NSString *name) 
+static NSInteger
+parseArgumentPart(NSString *part, NSString *name) 
 {
   NSString *prefix;
   
@@ -357,6 +361,11 @@ static NSInteger parseArgumentPart(NSString *part, NSString *name)
     {
       return NO;
     }
+}
+
++ (id<NSURLProtocolClient>) _ProtocolClient
+{
+  return AUTORELEASE([[_NSURLProtocolClient alloc] init]);
 }
 
 - (GSEasyHandleAction) didReceiveHeaderData: (NSData*)data 

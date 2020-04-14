@@ -1,6 +1,7 @@
-#import <Foundation/NSURLSession.h>
-#import <Foundation/NSURLRequest.h>
-#import <Foundation/Foundation.h>
+#import "GSURLPrivate.h"
+#import "Foundation/NSURLSession.h"
+#import "Foundation/NSURLRequest.h"
+#import "Foundation/Foundation.h"
 
 #import <curl/curl.h>
 
@@ -290,13 +291,6 @@ static int nextSessionIdentifier()
 
 @end
 
-@interface _NSURLProtocolClient : NSObject <NSURLProtocolClient>
-{
-  NSURLRequestCachePolicy  _cachePolicy;
-  NSMutableArray           *_cacheableData;
-  NSURLResponse            *_cacheableResponse;
-}
-@end
 
 @implementation _NSURLProtocolClient
 

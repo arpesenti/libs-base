@@ -73,10 +73,22 @@
 
 @interface      NSURLProtocol (Private)
 + (Class) _classToHandleRequest:(NSURLRequest *)request;
++ (id<NSURLProtocolClient>) _ProtocolClient;
 @end
 
-/*
- * Internal class for handling HTTP authentication
+
+/* Internal class for handling HTTP protocol client messages
+ */
+@interface _NSURLProtocolClient : NSObject <NSURLProtocolClient>
+{
+  NSURLRequestCachePolicy  _cachePolicy;
+  NSMutableArray           *_cacheableData;
+  NSURLResponse            *_cacheableResponse;
+}
+@end
+
+
+/* Internal class for handling HTTP authentication
  */
 @class	NSLock;
 @interface GSHTTPAuthentication : NSObject
