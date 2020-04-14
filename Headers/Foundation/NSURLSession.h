@@ -236,6 +236,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
   NSURLCache               *_URLCache;
   NSURLRequestCachePolicy  _requestCachePolicy;
   NSArray                  *_protocolClasses;
+  NSInteger                _HTTPMaximumConnectionLifetime;
   NSInteger                _HTTPMaximumConnectionsPerHost;
   BOOL                     _HTTPShouldUsePipelining;
   NSHTTPCookieAcceptPolicy _HTTPCookieAcceptPolicy;
@@ -244,44 +245,57 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
   NSDictionary             *_HTTPAdditionalHeaders;
 }
 
+- (NSURLRequest*) configureRequest: (NSURLRequest*)request;
+
 @property (class, readonly, strong)
   NSURLSessionConfiguration *defaultSessionConfiguration;
 
-- (NSURLCache*) URLCache;
-
-- (void) setURLCache: (NSURLCache*)cache;
-
-- (NSURLRequestCachePolicy) requestCachePolicy;
-
-- (void) setRequestCachePolicy: (NSURLRequestCachePolicy)policy;
-
-- (NSArray*) protocolClasses;
-
-- (NSInteger) HTTPMaximumConnectionsPerHost;
-
-- (void) setHTTPMaximumConnectionsPerHost: (NSInteger)n;
-
-- (BOOL) HTTPShouldUsePipelining;
-
-- (void) setHTTPShouldUsePipelining: (BOOL)flag;
+- (NSDictionary*) HTTPAdditionalHeaders;
 
 - (NSHTTPCookieAcceptPolicy) HTTPCookieAcceptPolicy;
 
-- (void) setHTTPCookieAcceptPolicy: (NSHTTPCookieAcceptPolicy)policy;
-
 - (NSHTTPCookieStorage*) HTTPCookieStorage;
 
-- (void) setHTTPCookieStorage: (NSHTTPCookieStorage*)storage;
+#if     !NO_GNUSTEP 
+- (NSInteger) HTTPMaximumConnectionLifetime;
+#endif
+
+- (NSInteger) HTTPMaximumConnectionsPerHost;
 
 - (BOOL) HTTPShouldSetCookies;
 
-- (void) setHTTPShouldSetCookies: (BOOL)flag;
+- (BOOL) HTTPShouldUsePipelining;
 
-- (NSDictionary*) HTTPAdditionalHeaders;
+- (NSArray*) protocolClasses;
+
+- (NSURLRequestCachePolicy) requestCachePolicy;
 
 - (void) setHTTPAdditionalHeaders: (NSDictionary*)headers;
 
-- (NSURLRequest*) configureRequest: (NSURLRequest*)request;
+- (void) setHTTPCookieAcceptPolicy: (NSHTTPCookieAcceptPolicy)policy;
+
+- (void) setHTTPCookieStorage: (NSHTTPCookieStorage*)storage;
+
+#if     !NO_GNUSTEP 
+/** Permits a session to be configured so that older connections are reused.
+ * A value of zero or less uses the default behavior where connections are
+ * reused as long as they are not older than 118 seconds, which is reasonable
+ * for the vast majority if situations.
+ */
+- (void) setHTTPMaximumConnectionLifetime: (NSInteger)n;
+#endif
+
+- (void) setHTTPMaximumConnectionsPerHost: (NSInteger)n;
+
+- (void) setHTTPShouldSetCookies: (BOOL)flag;
+
+- (void) setHTTPShouldUsePipelining: (BOOL)flag;
+
+- (void) setRequestCachePolicy: (NSURLRequestCachePolicy)policy;
+
+- (void) setURLCache: (NSURLCache*)cache;
+
+- (NSURLCache*) URLCache;
 
 @end
 

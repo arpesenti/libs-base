@@ -452,7 +452,9 @@ parseArgumentPart(NSString *part, NSString *name)
 - (void) configureEasyHandleForRequest: (NSURLRequest*)request 
                                   body: (GSURLSessionTaskBody*)body
 {
-  NSURLSessionTask  *task = [self task];
+  NSURLSessionTask  		*task = [self task];
+  NSURLSession			*session = [task session];
+  NSURLSessionConfiguration	*config = [session configuration];
 
   if ([[request HTTPMethod] isEqualToString:@"GET"]) 
     {
@@ -501,10 +503,9 @@ parseArgumentPart(NSString *part, NSString *name)
   NSAssert(nil != [request URL], @"No URL in request.");
   [_easyHandle setURL: [request URL]];
 
-  [_easyHandle setPipeWait: 
-    [[[task session] configuration] HTTPShouldUsePipelining]];
+  [_easyHandle setPipeWait: [config HTTPShouldUsePipelining]];
 
-  [_easyHandle setSessionConfig:[[task session] configuration]];
+  [_easyHandle setSessionConfig: config];
   [_easyHandle setAllowedProtocolsToHTTPAndHTTPS];
   [_easyHandle setPreferredReceiveBufferSize: NSIntegerMax];
 
@@ -551,17 +552,19 @@ parseArgumentPart(NSString *part, NSString *name)
 
   [_easyHandle setFollowLocation: NO];
 
-  // The httpAdditionalHeaders from session configuration has to be added to 
-  // the request. The request.allHTTPHeaders can override the 
-  // httpAdditionalHeaders elements. Add the httpAdditionalHeaders from session 
-  // configuration first and then append/update the request.allHTTPHeaders 
-  // so that request.allHTTPHeaders can override httpAdditionalHeaders.
+  /* The httpAdditionalHeaders from session configuration has to be added to 
+   * the request. The request.allHTTPHeaders can override the 
+   * httpAdditionalHeaders elements. Add the httpAdditionalHeaders from session 
+   * configuration first and then append/update the request.allHTTPHeaders 
+   * so that request.allHTTPHeaders can override httpAdditionalHeaders.
+   */
   NSMutableDictionary *hh = [NSMutableDictionary dictionary];
   NSDictionary        *HTTPAdditionalHeaders;
   NSDictionary        *HTTPHeaders;
   
   hh = [NSMutableDictionary dictionary];
-  HTTPAdditionalHeaders = [[[task session] configuration] HTTPAdditionalHeaders];
+  HTTPAdditionalHeaders
+    = [[[task session] configuration] HTTPAdditionalHeaders];
   if (nil == HTTPAdditionalHeaders)
     {
       HTTPAdditionalHeaders = [NSDictionary dictionary];
@@ -750,9 +753,9 @@ parseArgumentPart(NSString *part, NSString *name)
 
 - (void) redirectForRequest: (NSURLRequest*)request 
 {
-  NSURLSessionTask         *task;
-  NSURLSession             *session;
-  id<NSURLSessionDelegate> delegate;
+  NSURLSessionTask         	*task;
+  NSURLSession             	*session;
+  id<NSURLSessionDelegate> 	delegate;
 
   NSAssert(_internalState == GSNativeProtocolInternalStateTransferCompleted,
     @"Trying to redirect, but the transfer is not complete.");

@@ -947,6 +947,7 @@ static NSURLSessionConfiguration	*def = nil;
       _HTTPCookieStorage = nil;
       _HTTPShouldSetCookies = NO;
       _HTTPAdditionalHeaders = nil;
+      _HTTPMaximumConnectionLifetime = 0;	// Zero or less means default
     }
 
   return self;
@@ -994,6 +995,16 @@ static NSURLSessionConfiguration	*def = nil;
 - (void) setHTTPMaximumConnectionsPerHost: (NSInteger)n
 {
   _HTTPMaximumConnectionsPerHost = n;
+}
+
+- (NSInteger) HTTPMaximumConnectionLifetime
+{
+  return _HTTPMaximumConnectionLifetime;
+}
+
+- (void) setHTTPMaximumConnectionLifetime: (NSInteger)n
+{
+  _HTTPMaximumConnectionLifetime = n;
 }
 
 - (BOOL) HTTPShouldUsePipelining
