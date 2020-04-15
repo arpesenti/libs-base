@@ -493,11 +493,43 @@ static int nextSessionIdentifier()
   NSAssert(NO, @"The NSURLSession implementation doesn't currently handle redirects directly.");
 }
 
+- (NSURLProtectionSpace*) _protectionSpaceFrom: (NSHTTPURLResponse*)response
+{
+  NSURLProtectionSpace	*space = nil;
+  NSString		*auth;
+
+  auth = [[response allHeaderFields] objectForKey: @"WWW-Authenticate"];
+  if (nil != auth)
+    {
+      NSURL	*url = [response URL];
+      NSString	*host = [url host];
+      NSNumber	*port = [url port];
+      NSString	*scheme = [url scheme];
+      NSRange	range;
+      NSString	*realm;
+      NSString	*method;
+
+      if (nil == host) host = @"";
+      if (nil == port) port = [NSNumber numberWithInt: 80];
+      method = [[auth componentsSeparatedByString: @" "] firstObject];
+      range = [auth rangeOfString: @"realm="];
+      realm = range.length > 0
+	? [auth substringFromIndex: NSMaxRange(range)] : @"";
+      space = AUTORELEASE([[NSURLProtectionSpace alloc]
+	initWithHost: host
+	port: [port integerValue]
+	protocol: scheme
+	realm: realm
+	authenticationMethod: method]);
+    }
+  return space;
+}
+
 - (void) URLProtocolDidFinishLoading: (NSURLProtocol *)protocol
 {
   NSURLSessionTask          *task = [protocol task];
   NSURLSession              *session;
-  NSURLResponse             *urlResponse;
+  NSHTTPURLResponse         *urlResponse;
   NSURLCache                *cache;
   NSOperationQueue          *delegateQueue;
   id<NSURLSessionDelegate>  delegate;
@@ -505,7 +537,17 @@ static int nextSessionIdentifier()
   NSAssert(nil != task, @"Missing task");
 
   session = [task session];
-  urlResponse = [task response];
+  urlResponse = (NSHTTPURLResponse*)[task response];
+
+  if ([urlResponse statusCode] == 401)
+    {
+      NSURLProtectionSpace	*space;
+
+      if (nil != (space = [self _protectionSpaceFrom: urlResponse]))
+	{
+	}
+    }
+
   delegate = [session delegate];
   delegateQueue = [session delegateQueue];
 
@@ -977,10 +1019,11 @@ static NSURLSessionConfiguration	*def = nil;
 
 - (void) dealloc
 {
-  DESTROY(_URLCache);
-  DESTROY(_protocolClasses);
-  DESTROY(_HTTPCookieStorage);
   DESTROY(_HTTPAdditionalHeaders);
+  DESTROY(_HTTPCookieStorage);
+  DESTROY(_protocolClasses);
+  DESTROY(_URLCache);
+  DESTROY(_URLCredentialStorage);
   [super dealloc];
 }
 
@@ -992,6 +1035,11 @@ static NSURLSessionConfiguration	*def = nil;
 - (void) setURLCache: (NSURLCache*)cache
 {
   ASSIGN(_URLCache, cache);
+}
+
+- (void) setURLCredentialStorage: (NSURLCredentialStorage*)storage
+{
+  ASSIGN(_URLCredentialStorage, storage);
 }
 
 - (NSURLRequestCachePolicy) requestCachePolicy
@@ -1112,6 +1160,11 @@ static NSURLSessionConfiguration	*def = nil;
   return AUTORELEASE([r copy]);
 }
 
+- (NSURLCredentialStorage*) URLCredentialStorage
+{
+  return _URLCredentialStorage;
+}
+
 - (id) copyWithZone: (NSZone*)zone
 {
   NSURLSessionConfiguration *copy = [[[self class] alloc] init];
@@ -1119,6 +1172,7 @@ static NSURLSessionConfiguration	*def = nil;
   if (copy) 
     {
       copy->_URLCache = [_URLCache copy];
+      copy->_URLCredentialStorage = [_URLCredentialStorage copy];
       copy->_protocolClasses = [_protocolClasses copyWithZone: zone];
       copy->_HTTPMaximumConnectionsPerHost = _HTTPMaximumConnectionsPerHost;
       copy->_HTTPShouldUsePipelining = _HTTPShouldUsePipelining;

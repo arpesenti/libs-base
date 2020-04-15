@@ -20,6 +20,7 @@
 @class NSURLAuthenticationChallenge;
 @class NSURLCache;
 @class NSURLCredential;
+@class NSURLCredentialStorage;
 @class NSURLRequest;
 @class NSURLResponse;
 @class NSURLSessionConfiguration;
@@ -241,6 +242,7 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
   BOOL                     _HTTPShouldUsePipelining;
   NSHTTPCookieAcceptPolicy _HTTPCookieAcceptPolicy;
   NSHTTPCookieStorage      *_HTTPCookieStorage;
+  NSURLCredentialStorage   *_URLCredentialStorage;
   BOOL                     _HTTPShouldSetCookies;
   NSDictionary             *_HTTPAdditionalHeaders;
 }
@@ -295,7 +297,11 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
 
 - (void) setURLCache: (NSURLCache*)cache;
 
+- (void) setURLCredentialStorage: (NSURLCredentialStorage*)storage;
+
 - (NSURLCache*) URLCache;
+
+- (NSURLCredentialStorage*) URLCredentialStorage;
 
 @end
 
