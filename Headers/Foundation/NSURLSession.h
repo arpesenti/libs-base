@@ -382,7 +382,8 @@ didReceiveChallenge: (NSURLAuthenticationChallenge*)challenge
            dataTask: (NSURLSessionDataTask*)dataTask
      didReceiveData: (NSData*)data;
 
-/** Informs the delegate of a response.
+/** Informs the delegate of a response.  This message is sent when all the
+ * response headers have arrived, before the body of the response arrives.
  */
 - (void) URLSession: (NSURLSession*)session
            dataTask: (NSURLSessionDataTask*)dataTask
