@@ -375,12 +375,19 @@ didReceiveChallenge: (NSURLAuthenticationChallenge*)challenge
 @end
 
 @protocol NSURLSessionDataDelegate <NSURLSessionTaskDelegate>
-
+@optional
 /* Sent when data is available for the delegate to consume.
  */
 - (void) URLSession: (NSURLSession*)session 
            dataTask: (NSURLSessionDataTask*)dataTask
      didReceiveData: (NSData*)data;
+
+/** Informs the delegate of a response.
+ */
+- (void) URLSession: (NSURLSession*)session
+           dataTask: (NSURLSessionDataTask*)dataTask
+ didReceiveResponse: (NSURLResponse*)response
+  completionHandler: (void (^)(NSURLSessionResponseDisposition disposition))completionHandler;
 
 @end
 

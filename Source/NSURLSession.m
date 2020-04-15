@@ -318,7 +318,7 @@ static int nextSessionIdentifier()
 }
 
 - (void) URLProtocol: (NSURLProtocol *)protocol
-    didFailWithError: (NSError *)error
+  didFailWithError: (NSError *)error
 {
   NSURLSessionTask  *task = [protocol task];
 
@@ -328,7 +328,7 @@ static int nextSessionIdentifier()
 }
 
 - (void) task: (NSURLSessionTask *)task
-    didFailWithError: (NSError *)error
+  didFailWithError: (NSError *)error
 {
   NSURLSession                  *session;
   NSOperationQueue              *delegateQueue;
@@ -412,7 +412,8 @@ static int nextSessionIdentifier()
 
   if (nil != delegate 
     && [task isKindOfClass: [NSURLSessionDataTask class]]
-    && [delegate respondsToSelector: @selector(URLSession:dataTask:didReceiveData:)])
+    && [delegate respondsToSelector:
+      @selector(URLSession:dataTask:didReceiveData:)])
     {
       [delegateQueue addOperationWithBlock:
        ^{
@@ -461,6 +462,27 @@ static int nextSessionIdentifier()
           case NSURLCacheStorageNotAllowed:
             break;
         }
+    }
+
+  id<NSURLSessionDelegate>  delegate = [session delegate];
+  if (nil != delegate)
+    {
+      [[session delegateQueue] addOperationWithBlock: 
+        ^{
+          if ([delegate respondsToSelector: @selector
+	    (URLSession:dataTask:didReceiveResponse:completionHandler:)])
+            {
+	      NSURLSessionDataTask	*dataTask = (NSURLSessionDataTask*)task;
+
+              [(id<NSURLSessionDataDelegate>)delegate URLSession: session 
+							dataTask: dataTask 
+					      didReceiveResponse: response
+					       completionHandler:
+		^(NSURLSessionResponseDisposition disposition) {
+		  NSLog(@"Ignoring disposition from completion handler.");
+                }];
+            }
+        }];
     }
 }
 
