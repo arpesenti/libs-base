@@ -12974,6 +12974,7 @@ if eval $CURL_CONFIG --version 2>/dev/null >/dev/null; then
   if test $curl_maj -lt 7 -o \( $curl_maj -eq 7 -a $curl_min -lt 49 \); then
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: FAILED (version too old to use" >&5
 $as_echo "FAILED (version too old to use" >&6; }
+    curl_ok=no
   else
     CURLCFLAGS=`$CURL_CONFIG --cflags`
     CURLLIBS=`$CURL_CONFIG --libs`
@@ -13104,16 +13105,16 @@ fi
 
 if test $enable_nsurlsession = yes; then
   if test "$OBJC_RUNTIME_LIB" != "ng"; then
-    as_fn_error $? "Missing ng runtime (needed for NSURLSession)." "$LINENO" 5
+    as_fn_error $? "Missing ng runtime (needed for NSURLSession). To build without NSURLSession support, please run configure again with the --disable-nsurlsession option." "$LINENO" 5
   fi
   if test $HAVE_BLOCKS = 0; then
-    as_fn_error $? "Missing blocks support (needed for NSURLSession)." "$LINENO" 5
+    as_fn_error $? "Missing blocks support (needed for NSURLSession).  To build without NSURLSession support, please run configure again with the --disable-nsurlsession option." "$LINENO" 5
   fi
   if test $HAVE_LIBDISPATCH = 0; then
-    as_fn_error $? "Missing libdispatch (needed for NSURLSession)." "$LINENO" 5
+    as_fn_error $? "Missing libdispatch (needed for NSURLSession).  To build without NSURLSession support, please run configure again with the --disable-nsurlsession option." "$LINENO" 5
   fi
   if test $HAVE_LIBCURL = 0; then
-    as_fn_error $? "Missing libcurl (needed for NSURLSession)." "$LINENO" 5
+    as_fn_error $? "Missing libcurl (needed for NSURLSession).  To build without NSURLSession support, please run configure again with the --disable-nsurlsession option." "$LINENO" 5
   fi
 fi
 
