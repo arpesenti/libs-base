@@ -1,4 +1,78 @@
-2020-04-07  Frederik Seiffert <frederik@algoriddim.com>
+2020-05-25  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSUserDefaults.m:
+	Store NSNumber instead of NSString for NSUserDefaults -setBool:forKey:.
+
+2020-05-23  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/GNUstepBase/GSConfig.h.in,
+	* Source/GSNetwork.h,
+	* Source/win32/GSFileHandle.m,
+	* config/config.reuseaddr.c:
+	Include winsock2.h before windows.h, as required by MSYS2/MinGW-w64.
+
+2020-05-14  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSException.h:
+	Fix BASE_NATIVE_OBJC_EXCEPTIONS check with OBJC_ZEROCOST_EXCEPTIONS.
+
+2020-05-13  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/win32/GSFileHandle.m:
+	* Source/win32/NSMessagePort.m:
+	Fix building Win32 classes with nonfragile ABI.
+
+2010-05-12 Riccardo Mottola <rm@gnu.org>
+
+	* Source/NSFileManager.m:
+	In changeFileAttributes implement setting of creation date also for
+	Unix, which needs to be done before setting the modification date.
+	Also, implement reading the creation (birth time) date if a supported
+	method was detected.
+
+2010-05-12 Riccardo Mottola <rm@gnu.org>
+
+	* configure
+	* configure.ac
+	* Headers/GNUstepBase/config.h.in
+	Check for utimensat()
+
+	* Source/NSFileManager.m: (changeFileAttributes:)
+	Use utimensat() to set file modification date, if available.
+
+2020-05-05  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/unix/NSStream.m: Add NSInputStream support for reading
+	Android assets from main bundle.
+
+2020-05-10  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/NSISO8601DateFormatter.m,
+	* Source/NSOrthography.m: Clean up some compiler warnings.
+
+2020-05-09  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Tests/base/NSLocale/general.m: Mark more tests that depend on
+	locale setting as hopes.
+	* Tests/base/NSXMLParser/parse.m: Mark stream test as hopeful as
+	this isn't implemented at the moment.
+	* Tests/base/NSURL/basic.m: Use PASS_EQUAL in the downlaod test
+	to get the actual http status reported.
+
+2020-05-08  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/NSXMLParser.m: Fix small bug in last commit that broke
+	all gui applications when there was a commented out section in the
+	user default XML file.
+
+2020-05-07  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSLocale.h:
+	* Source/NSLocale.m:
+	Use "instancetype" for instance-returning methods. Fix method
+	signature of -displayNameForKey:value:.
+
+2020-05-05  Frederik Seiffert <frederik@algoriddim.com>
 
 	* Headers/Foundation/NSXMLParser.h:
 	* Headers/GNUstepBase/GSXML.h:
