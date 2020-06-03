@@ -1003,7 +1003,7 @@ static NSURLSessionConfiguration	*def = nil;
 {
   if (nil != (self = [super init]))
     {
-      _protocolClasses = [NSArray arrayWithObjects: 
+      _protocolClasses = [[NSArray alloc] initWithObjects: 
         [GSHTTPURLProtocol class], nil];
       _HTTPMaximumConnectionsPerHost = 1;
       _HTTPShouldUsePipelining = YES;
