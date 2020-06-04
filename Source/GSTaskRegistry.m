@@ -7,22 +7,30 @@
   void                 (^_tasksCompletion)(void);
 }
 
-- (instancetype) init {
-    if (nil != (self = [super init])) 
-      {
-        _tasks = [[NSMutableDictionary alloc] init];
-      }
-    return self;
+- (instancetype) init 
+{
+  if (nil != (self = [super init])) 
+    {
+      _tasks = [[NSMutableDictionary alloc] init];
+    }
+  
+  return self;
+}
+
+- (void) dealloc
+{
+  DESTROY(_tasks);
+  [super dealloc];
 }
 
 - (NSArray*) allTasks 
 {
-    return [_tasks allValues];
+  return [_tasks allValues];
 }
 
 - (BOOL) isEmpty 
 {
-    return [_tasks count] == 0;
+  return [_tasks count] == 0;
 }
 
 - (void) notifyOnTasksCompletion: (void (^)(void))tasksCompletion 
@@ -30,7 +38,7 @@
   _tasksCompletion = tasksCompletion;
 }
 
-- (void)addTask: (NSURLSessionTask*)task
+- (void) addTask: (NSURLSessionTask*)task
 {
   NSString          *identifier;
   NSUInteger        taskIdentifier;
@@ -57,7 +65,7 @@
   [_tasks setObject: task forKey: identifier];
 }
 
-- (void )removeTask: (NSURLSessionTask*)task 
+- (void) removeTask: (NSURLSessionTask*)task 
 {
   NSString          *identifier;
   NSUInteger        taskIdentifier;
@@ -72,7 +80,7 @@
     {
       NSAssert(NO, @"Trying to remove task, but it's not in the registry."); 
     }
- 
+
   [_tasks removeObjectForKey: identifier];
 
   if (nil != _tasksCompletion && [self isEmpty]) 
