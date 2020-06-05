@@ -192,6 +192,7 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 - (void) dealloc
 {
   DESTROY(_easyHandle);
+  DESTROY(_transferState);
   [super dealloc];
 }
 
