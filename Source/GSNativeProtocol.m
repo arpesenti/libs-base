@@ -174,28 +174,13 @@ static BOOL isEasyHandleAddedToMultiHandle(GSNativeProtocolInternalState state)
 
 @implementation GSNativeProtocol
 
-- (instancetype) initWithTask: (NSURLSessionTask*)task 
-               cachedResponse: (NSCachedURLResponse*)cachedResponse 
-                       client: (id<NSURLProtocolClient>)client 
+- (instancetype) initWithTask: (NSURLSessionTask*)_task 
+               cachedResponse: (NSCachedURLResponse*)_cachedResponse 
+                       client: (id<NSURLProtocolClient>)_client
 {
-  if (nil != (self = [super initWithTask: task 
-                          cachedResponse: cachedResponse 
-                                  client: client]))
-    {
-      _internalState = GSNativeProtocolInternalStateInitial;
-      _easyHandle = [[GSEasyHandle alloc] initWithDelegate: self];
-    }
-    
-  return self;
-}
-
-- (instancetype) initWithRequest: (NSURLRequest*)request 
-                  cachedResponse: (NSCachedURLResponse*)cachedResponse 
-                          client: (id<NSURLProtocolClient>)client 
-{
-  if (nil != (self = [super initWithRequest: request 
-                             cachedResponse: cachedResponse 
-                                     client: client]))
+  if (nil != (self = [super initWithTask: _task
+                          cachedResponse: _cachedResponse 
+                                  client: _client]))
     {
       _internalState = GSNativeProtocolInternalStateInitial;
       _easyHandle = [[GSEasyHandle alloc] initWithDelegate: self];

@@ -631,7 +631,7 @@ typedef struct {
                cachedResponse: (NSCachedURLResponse*)_cachedResponse 
                        client: (id<NSURLProtocolClient>)_client
 {
-  if (nil != (self = [self initWithRequest: [task currentRequest] 
+  if (nil != (self = [self initWithRequest: [_task currentRequest] 
                             cachedResponse: _cachedResponse 
                                     client: _client]))
     {
