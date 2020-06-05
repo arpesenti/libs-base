@@ -331,9 +331,11 @@ static int curl_timer_function(CURL *easyHandle, int timeout, void *userdata) {
                                       socket: socket
                                        queue: _queue
                                      handler: ^{
-	  [self performActionForSocket: socket];
+	        [self performActionForSocket: socket];
         }];
     }
+
+  RELEASE(action);
 
   return 0;
 }
