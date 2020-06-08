@@ -12,6 +12,7 @@
 #import "GSTaskRegistry.h"
 #import "GSHTTPURLProtocol.h"
 #import "GSURLSessionTaskBody.h"
+#import "GSDispatch.h"
 
 
 // NSURLSession API implementation overview
