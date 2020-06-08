@@ -1,6 +1,7 @@
 #import "GSMultiHandle.h"
 #import "GSTimeoutSource.h"
 #import "GSEasyHandle.h"
+#import "GSDispatch.h"
 
 
 @interface GSMultiHandle ()
