@@ -76,16 +76,17 @@ static int curl_timer_function(CURL *easyHandle, int timeout, void *userdata) {
   return _rawHandle;
 }
 
-- (instancetype) initWithConfiguration: (NSURLSessionConfiguration*)configuration 
-                             workQueue: (dispatch_queue_t)workQueque
+- (instancetype) initWithConfiguration: (NSURLSessionConfiguration*)conf 
+                             workQueue: (dispatch_queue_t)aQueue
 {
   if (nil != (self = [super init]))
     {
       _rawHandle = curl_multi_init();
       _easyHandles = [[NSMutableArray alloc] init];
-      _queue = dispatch_queue_create_with_target("GSMutilHandle.isolation", DISPATCH_QUEUE_SERIAL, workQueque);
+      _queue = dispatch_queue_create_with_target("GSMultiHandle.isolation",
+	DISPATCH_QUEUE_SERIAL, aQueue);
       [self setupCallbacks];
-      [self configureWithConfiguration: configuration];
+      [self configureWithConfiguration: conf];
     }
 
   return self;
