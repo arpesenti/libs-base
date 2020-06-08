@@ -3413,7 +3413,7 @@ if eval $CURL_CONFIG --version 2>/dev/null >/dev/null; then
   curl_ver=`$CURL_CONFIG --version | sed -e "s/libcurl //g"`
   curl_maj=`echo $curl_ver | sed -e "s/^\(.*\)\.\(.*\)\.\(.*\)$/\1/"`
   curl_min=`echo $curl_ver | sed -e "s/^\(.*\)\.\(.*\)\.\(.*\)$/\2/"`
-  if test $curl_maj -lt 7 -o \( $curl_maj -eq 7 -a $curl_min -lt 49 \); then
+  if test $curl_maj -lt 7 -o \( $curl_maj -eq 7 -a $curl_min -lt 65 \); then
     AC_MSG_RESULT([FAILED (version too old to use])
     curl_ok=no
   else
