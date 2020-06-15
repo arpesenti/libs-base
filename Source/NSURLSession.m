@@ -664,7 +664,7 @@ static int nextSessionIdentifier()
         }
       _taskIdentifier = identifier;
 #if HAVE_DISPATCH_QUEUE_CREATE_WITH_TARGET
-      _workQueue = dispatch_queue_create("org.gnustep.NSURLSessionTask.WorkQueue", DISPATCH_QUEUE_SERIAL, [session workQueue]);
+      _workQueue = dispatch_queue_create_with_target("org.gnustep.NSURLSessionTask.WorkQueue", DISPATCH_QUEUE_SERIAL, [session workQueue]);
 #else
       _workQueue = dispatch_queue_create("org.gnustep.NSURLSessionTask.WorkQueue", DISPATCH_QUEUE_SERIAL);
       dispatch_set_target_queue(_workQueue, [session workQueue]);
