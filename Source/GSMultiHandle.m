@@ -83,8 +83,14 @@ static int curl_timer_function(CURL *easyHandle, int timeout, void *userdata) {
     {
       _rawHandle = curl_multi_init();
       _easyHandles = [[NSMutableArray alloc] init];
+#if HAVE_DISPATCH_QUEUE_CREATE_WITH_TARGET
       _queue = dispatch_queue_create_with_target("GSMultiHandle.isolation",
 	DISPATCH_QUEUE_SERIAL, aQueue);
+#else
+      _queue = dispatch_queue_create("GSMultiHandle.isolation",
+	DISPATCH_QUEUE_SERIAL);
+      dispatch_set_target_queue(_queue, aQueue);
+#endif
       [self setupCallbacks];
       [self configureWithConfiguration: conf];
     }

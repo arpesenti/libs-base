@@ -3477,9 +3477,6 @@ if test $enable_nsurlsession = yes; then
    fi
   # Check for dispatch_queue_create_with_target needed for NSURLSession
   AC_CHECK_FUNCS(dispatch_queue_create_with_target)
-  if test "$ac_cv_func_dispatch_queue_create_with_target" = "no"; then
-    AC_MSG_ERROR([Missing dispatch_queue_create_with_target() function (needed for NSURLSession). To build without NSURLSession support, please run configure again with the --disable-nsurlsession option.])
-  fi
   if test $HAVE_LIBCURL = 0; then
     AC_MSG_ERROR([Missing libcurl (needed for NSURLSession). To build without NSURLSession support, please run configure again with the --disable-nsurlsession option.])
   fi

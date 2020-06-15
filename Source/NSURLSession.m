@@ -663,7 +663,12 @@ static int nextSessionIdentifier()
             initWithInputStream: stream];
         }
       _taskIdentifier = identifier;
-      _workQueue = dispatch_queue_create_with_target("org.gnustep.NSURLSessionTask.WorkQueue", DISPATCH_QUEUE_SERIAL, [session workQueue]);
+#if HAVE_DISPATCH_QUEUE_CREATE_WITH_TARGET
+      _workQueue = dispatch_queue_create("org.gnustep.NSURLSessionTask.WorkQueue", DISPATCH_QUEUE_SERIAL, [session workQueue]);
+#else
+      _workQueue = dispatch_queue_create("org.gnustep.NSURLSessionTask.WorkQueue", DISPATCH_QUEUE_SERIAL);
+      dispatch_set_target_queue(_workQueue, [session workQueue]);
+#endif
       _state = NSURLSessionTaskStateSuspended;
       _suspendCount = 1;
       _protocolLock = [[NSLock alloc] init];
