@@ -564,7 +564,6 @@ static NSStringEncoding	defaultEncoding;
 	}
     }
 
-
   date = [attributes fileCreationDate];
   if (date != nil && NO == [date isEqual: [old fileCreationDate]])
     {
@@ -614,7 +613,7 @@ static NSStringEncoding	defaultEncoding;
 	  ub[1].tv_sec = truncl(ti);
 	  ub[1].tv_nsec = (ti - (double)ub[1].tv_sec) * 1.0e6;
 
-	  ok = (utimensat(0, lpath, ub, 0) == 0);
+	  ok = (utimensat(AT_FDCWD, lpath, ub, 0) == 0);
 #elif  defined(_POSIX_VERSION)
           struct _UTIMB ub;
 	  ub.actime = sb.st_atime;
@@ -663,7 +662,7 @@ static NSStringEncoding	defaultEncoding;
 	  ub[1].tv_sec = truncl(ti);
 	  ub[1].tv_nsec = (ti - (double)ub[1].tv_sec) * 1.0e6;
 
-	  ok = (utimensat(0, lpath, ub, 0) == 0);
+	  ok = (utimensat(AT_FDCWD, lpath, ub, 0) == 0);
 #elif  defined(_WIN32) || defined(_POSIX_VERSION)
           struct _UTIMB ub;
 	  ub.actime = sb.st_atime;
@@ -1281,9 +1280,10 @@ static NSStringEncoding	defaultEncoding;
     }
   fileType = [attrs fileType];
 
-  /*
-   * Don't attempt to retain ownership of copy ... we want the copy
+  /* Don't attempt to retain ownership of copy ... we want the copy
    * to be owned by the current user.
+   * However, the new copy should have the creation/modification date
+   * of the original (unlike Posix semantics).
    */
   attrs = AUTORELEASE([attrs mutableCopy]);
   [(NSMutableDictionary*)attrs removeObjectForKey: NSFileOwnerAccountID];
@@ -1296,7 +1296,8 @@ static NSStringEncoding	defaultEncoding;
     {
 
       /* If destination directory is a descendant of source directory copying
-	  isn't possible. */
+       * isn't possible.
+       */
       if ([[destination stringByAppendingString: @"/"]
 	hasPrefix: [source stringByAppendingString: @"/"]])
 	{

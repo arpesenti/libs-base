@@ -1,3 +1,30 @@
+2020-07-13  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSURLRequest.h:
+	* Source/NSURLRequest.m:
+	Update NSURLRequest header to use "instancetype".
+
+2020-07-08  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSLog.m:
+	Don't log current thread if its identical to private thread ID.
+	This makes the log more succinct when GSLogThread is enabled and the
+	system doesn't provide an OS-level thread ID (i.e. GSPrivateThreadID()
+	returns GSCurrentThread()), which would previously cause the NSThread
+	pointer to be logged twice.
+
+2020-07-08  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSLog.m,
+	* Source/NSProcessInfo.m: Improve NSLog output on Android.
+	We now always set -GSLogSyslog, as stdout/stderr is not available on
+	Android. Also fixes log output containing extraneous date/time.
+
+2020-07-06  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSThread.m: Fix possible deadlock when becoming multi-
+	threaded.
+
 2020-06-14 Gregory John Casamento <greg.casamento@gmail.com>
 
 	* Headers/Foundation/NSKeyedArchiver.h
