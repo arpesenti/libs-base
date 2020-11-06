@@ -54,11 +54,14 @@
     {
       if ([t isEqual: task]) 
         {
-          NSAssert(NO, @"Trying to re-insert a task that's already in the registry.");
+          NSAssert(NO,
+            @"Trying to re-insert a task that's already in the registry.");
         } 
       else 
         {
-          NSAssert(NO, @"Trying to insert a task, but a different task with the same identifier is already in the registry.");
+          NSAssert(NO,
+            @"Trying to insert a task, but a different task with the same"
+            @" identifier is already in the registry.");
         }
     }
   

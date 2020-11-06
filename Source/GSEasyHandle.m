@@ -1,9 +1,10 @@
+#import "GSURLPrivate.h"
 #import "GSEasyHandle.h"
 #import "GSTimeoutSource.h"
 
 typedef NS_OPTIONS(NSUInteger, GSEasyHandlePauseState) {
-    GSEasyHandlePauseStateReceive = 1 << 0,
-    GSEasyHandlePauseStateSend = 1 << 1
+  GSEasyHandlePauseStateReceive = 1 << 0,
+  GSEasyHandlePauseStateSend = 1 << 1
 };
 
 @interface GSEasyHandle ()
@@ -116,15 +117,40 @@ curl_debug_function(CURL *handle, curl_infotype type, char *data,
       return 0;
     }
 
-  NSURLSessionTask *task = (NSURLSessionTask*)userptr;
-  NSString *text = @"";
+  if (CURLINFO_SSL_DATA_OUT == type || CURLINFO_SSL_DATA_IN == type)
+    {
+      return 0; // Don't log encrypted data here
+    }
 
+  NSURLSessionTask      *task = (NSURLSessionTask*)userptr;
+  NSString              *text = @"";
+  NSURLRequest          *o = [task originalRequest];
+  NSURLRequest          *r = [task currentRequest];
+  id<GSLogDelegate>     d = [(nil == r ? o : r) _debugLogDelegate];
+
+  if (d != nil)
+    {
+      if (CURLINFO_DATA_IN == type || CURLINFO_HEADER_IN == type)
+        {
+          if ([d getBytes: (const uint8_t *)data ofLength: size byHandle: o])
+            {
+              return 0; // Handled
+            }
+        }
+      if (CURLINFO_DATA_OUT == type || CURLINFO_HEADER_OUT == type)
+        {
+          if ([d putBytes: (const uint8_t *)data ofLength: size byHandle: o])
+            {
+              return 0; // Handled
+            }
+        }
+    }
   if (data) 
     {
       text = [NSString stringWithUTF8String: data];
     }
   
-  NSLog(@"%lu %d %@", [task taskIdentifier], type, text);
+  NSLog(@"%p %lu %d %@", o, [task taskIdentifier], type, text);
 
   return 0;
 }

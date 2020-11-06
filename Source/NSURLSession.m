@@ -15,41 +15,39 @@
 #import "GSDispatch.h"
 
 
-// NSURLSession API implementation overview
-//
-// This implementation uses libcurl for the HTTP layer implementation. At a
-// high level, the `NSURLSession` keeps a *multi handle*, and each
-// `NSURLSessionTask` has an *easy handle*. This way these two APIs somewhat
-// have a 1-to-1 mapping.
-//
-// The `NSURLSessionTask` class is in charge of configuring its *easy handle*
-// and adding it to the owning session’s *multi handle*. Adding / removing
-// the handle effectively resumes / suspends the transfer.
-//
-// The `NSURLSessionTask` class has subclasses, but this design puts all the
-// logic into the parent `NSURLSessionTask`.
-//
-// The session class uses the `GSTaskRegistry` to keep track of its
-// tasks.
-//
-// The task class uses an `GSInternalState` type together 
-// with `GSTransferState` to keep track of its state and each transfer’s state 
-// -- note that a single task may do multiple transfers, 
-// e.g. as the result of a redirect.
-//
-// The NSURLSession has a libdispatch ‘work queue’, and all internal work is
-// done on that queue, such that the code doesn't have to deal with thread
-// safety beyond that. All work inside a `NSURLSessionTask` will run on this
-// work queue, and so will code manipulating the session's *multi handle*.
-//
-// Delegate callbacks are, however, done on the passed in
-// `delegateQueue`. And any calls into this API need to switch onto the ‘work
-// queue’ as needed.
-//
-// Most of HTTP is defined in [RFC 2616](https://tools.ietf.org/html/rfc2616).
-// While libcurl handles many of these details, some are handled by this
-// NSURLSession implementation.
-
+/* NSURLSession API implementation overview
+ *
+ * This implementation uses libcurl for the HTTP layer implementation. At a
+ * high level, the [NSURLSession] keeps a curl *multi handle*, and each
+ * [NSURLSessionTask] has an *easy handle*. This way these two APIs somewhat
+ * have a 1-to-1 mapping.
+ *
+ * The [NSURLSessionTask] class is in charge of configuring its *easy handle*
+ * and adding it to the owning session’s *multi handle*. Adding / removing
+ * the handle effectively resumes / suspends the transfer.
+ *
+ * The [NSURLSessionTasks] class has subclasses, but this design puts all the
+ * logic into the parent [NSURLSessionTask].
+ *
+ * The session class uses the [GSTaskRegistry] to keep track of its tasks.
+ *
+ * The task class uses an GSInternalState type together with GSTransferState
+ * to keep track of its state and each transfer’s state. 
+ * NB. a single task may do multiple transfers (e.g. as the result of a
+ * redirect).
+ *
+ * The [NSURLSession] has a libdispatch *work queue*, and all internal work is
+ * done on that queue, such that the code doesn't have to deal with thread
+ * safety beyond that. All work inside a [NSURLSessionTask] will run on this
+ * work queue, and so will code manipulating the session's *multi handle*.
+ *
+ * Delegate callbacks are, however, done on the passed in delegateQueue.
+ * Any calls into this API need to switch onto the *work queue* as needed.
+ *
+ * Most of HTTP is defined in [RFC 2616](https://tools.ietf.org/html/rfc2616).
+ * While libcurl handles many of these details, some are handled by this
+ * NSURLSession implementation.
+ */
 @interface NSURLSession ()
 
 - (dispatch_queue_t) workQueue;

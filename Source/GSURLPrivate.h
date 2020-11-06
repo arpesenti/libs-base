@@ -58,6 +58,7 @@
 
 @interface	NSURLRequest (Private)
 - (BOOL) _debug;
+- (id<GSLogDelegate>) _debugLogDelegate;
 - (id) _propertyForKey: (NSString*)key;
 - (void) _setProperty: (id)value forKey: (NSString*)key;
 @end
@@ -72,7 +73,7 @@
 
 
 @interface      NSURLProtocol (Private)
-+ (Class) _classToHandleRequest:(NSURLRequest *)request;
++ (Class) _classToHandleRequest: (NSURLRequest *)request;
 + (id<NSURLProtocolClient>) _ProtocolClient;
 @end
 

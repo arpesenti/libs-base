@@ -27,11 +27,11 @@
 @class NSURLSessionDataTask;
 
 
-/*
+/**
  * NSURLSession is a replacement API for NSURLConnection.  It provides
  * options that affect the policy of, and various aspects of the
  * mechanism by which NSURLRequest objects are retrieved from the
- * network.
+ * network.<br />
  *
  * An NSURLSession may be bound to a delegate object.  The delegate is
  * invoked for certain events during the lifetime of a session.
@@ -130,38 +130,62 @@ typedef NS_ENUM(NSUInteger, NSURLSessionTaskState) {
  */
 @interface NSURLSessionTask : NSObject <NSCopying>
 {
-  NSUInteger    _taskIdentifier;                /* an identifier for this task, 
-                                                 * assigned by and unique to the 
-                                                 * owning session */
+  /** An identifier for this task, assigned by and unique
+   * to the owning session
+   */
+  NSUInteger    _taskIdentifier;
+
+  /** The request this task was created to handle.
+   */
   NSURLRequest  *_originalRequest;
-  NSURLRequest  *_currentRequest;               /* may differ from 
-                                                 * originalRequest due to http 
-                                                 * server redirection */
-  NSURLResponse *_response;                     /* may be nil if no response has
-                                                 * been received */
-  int64_t       _countOfBytesReceived;          /* number of body bytes already 
-                                                 * received */
-  int64_t       _countOfBytesSent;              /* number of body bytes already 
-                                                 * sent */
-  int64_t       _countOfBytesExpectedToSend;    /* number of body bytes we 
-                                                 * expect to send, derived from 
-                                                 * the Content-Length of the 
-                                                 * HTTP request */
-  int64_t       _countOfBytesExpectedToReceive; /* number of byte bytes we 
-                                                 * expect to receive, usually 
-                                                 * derived from the 
-                                                 * Content-Length header of an 
-                                                 * HTTP response. */
+
+  /** The request this task is currently handling.  This may differ from 
+   * originalRequest due to http server redirection
+   */
+  NSURLRequest  *_currentRequest;
+
+  /** The response to the current request, which may be nil if no response
+   * has been received
+   */
+  NSURLResponse *_response;
+
+  /** number of body bytes already received
+   */
+  int64_t       _countOfBytesReceived;
+
+  /** number of body bytes already sent
+   */
+  int64_t       _countOfBytesSent;
+
+  /** number of body bytes we expect to send, derived from 
+   * the Content-Length of the HTTP request
+   */
+  int64_t       _countOfBytesExpectedToSend;
+
+  /** number of byte bytes we expect to receive, usually derived from the 
+   * Content-Length header of an HTTP response.
+   */
+  int64_t       _countOfBytesExpectedToReceive;
+
+  /** a description of the current task for diagnostic purposes
+   */
   NSString      *_taskDescription;
-  NSURLSessionTaskState _state;                 /* The current state of the task 
-                                                 * within the session. */
-  NSError       *_error;                        /* The error, if any, delivered 
-                                                 * via -URLSession:task:didCompleteWithError:
-                                                 * This property will be nil in 
-                                                 * the event that no error 
-                                                 * occured. */
+
+  /** The current state of the task within the session.
+   */
+  NSURLSessionTaskState _state;
+
+  /** The error, if any, delivered via -URLSession:task:didCompleteWithError:
+   * This is nil until an error has occured.
+   */
+  NSError       *_error;
+
+  /** The dispatch queue used to handle this request/response.
+   */
   dispatch_queue_t  _workQueue;
+
   NSUInteger        _suspendCount;
+
   GSURLSessionTaskBody  *_knownBody;
 }
 

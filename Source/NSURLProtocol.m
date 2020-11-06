@@ -359,6 +359,7 @@ static NSLock		*pairLock = nil;
   NSURLAuthenticationChallenge	*_challenge;
   NSURLCredential		*_credential;
   NSHTTPURLResponse		*_response;
+  id<GSLogDelegate>             _logDelegate;
 }
 @end
 
@@ -777,7 +778,14 @@ typedef struct {
   static NSDictionary *methods = nil;
 
   _debug = GSDebugSet(@"NSURLProtocol");
-  if (YES == [this->request _debug]) _debug = YES;
+  if (YES == [this->request _debug])
+    {
+      _debug = YES;
+    }
+  if (_debug)
+    {
+      _logDelegate = [this->request _debugLogDelegate];
+    }
 
   if (methods == nil)
     {
@@ -1030,7 +1038,12 @@ typedef struct {
     }
   if (_debug)
     {
-      debugRead(self, readCount, buffer);
+      if (NO == [_logDelegate getBytes: buffer
+                              ofLength: readCount
+                              byHandle: self])
+        {
+          debugRead(self, readCount, buffer);
+        }
     }
 
   if (_parser == nil)
@@ -1042,7 +1055,7 @@ typedef struct {
   d = [NSData dataWithBytes: buffer length: readCount];
   if ([_parser parse: d] == NO && (_complete = [_parser isComplete]) == NO)
     {
-      if (_debug == YES)
+      if (_debug)
 	{
 	  NSLog(@"%@ HTTP parse failure - %@", self, _parser);
 	}
@@ -1477,7 +1490,7 @@ typedef struct {
 	   * lost in the network or the remote end received it and
 	   * the response was lost.
 	   */
-	  if (_debug == YES)
+	  if (_debug)
 	    {
 	      NSLog(@"%@ HTTP response not received - %@", self, _parser);
 	    }
@@ -1511,7 +1524,7 @@ typedef struct {
 	    return;
 
 	  case NSStreamEventOpenCompleted: 
-	    if (_debug == YES)
+	    if (_debug)
 	      {
 		NSLog(@"%@ HTTP input stream opened", self);
 	      }
@@ -1534,7 +1547,7 @@ typedef struct {
 	      NSURL		*u;
 	      int		l;		
 
-	      if (_debug == YES)
+	      if (_debug)
 	        {
 	          NSLog(@"%@ HTTP output stream opened", self);
 	        }
@@ -1675,9 +1688,14 @@ typedef struct {
 				      maxLength: len - _writeOffset];
 		  if (written > 0)
 		    {
-		      if (_debug == YES)
+		      if (_debug)
 		        {
-                          debugWrite(self, written, bytes + _writeOffset);
+                          if (NO == [_logDelegate putBytes: bytes + _writeOffset
+                                                  ofLength: written
+                                                  byHandle: self])
+                            {
+                              debugWrite(self, written, bytes + _writeOffset);
+                            }
 			}
 		      _writeOffset += written;
 		      if (_writeOffset >= len)
@@ -1715,7 +1733,7 @@ typedef struct {
 		      len = [_body read: buffer maxLength: sizeof(buffer)];
 		      if (len < 0)
 			{
-			  if (_debug == YES)
+			  if (_debug)
 			    {
 			      NSLog(@"%@ error reading from HTTPBody stream %@",
 				self, [NSError _last]);
@@ -1732,9 +1750,14 @@ typedef struct {
 			  written = [this->output write: buffer maxLength: len];
 			  if (written > 0)
 			    {
-			      if (_debug == YES)
+			      if (_debug)
 				{
-                                  debugWrite(self, written, buffer);
+                                  if (NO == [_logDelegate putBytes: buffer
+                                                          ofLength: written
+                                                          byHandle: self])
+                                    {
+                                      debugWrite(self, written, buffer);
+                                    }
 				}
 			      len -= written;
 			      if (len > 0)
